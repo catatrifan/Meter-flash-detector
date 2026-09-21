@@ -213,10 +213,19 @@ saveMeterConstantButton.addEventListener('click', () => {
 function startMeasurement() {
   pulseTimes = [];
   recentIntervals = [];
+  values = [];
+  flashCount = 0;
+  lastFlash = 0;
+  baseline = null;
+  armed = true;
+  peak = 0;
+  countEl.textContent = '0';
+  lastEl.textContent = '—';
   measurementRunning = true;
   startMeasurementButton.disabled = true;
   stopMeasurementButton.disabled = false;
   updatePowerDisplay();
+  drawGraph();
   powerDetail.textContent = `Measuring • ${meterConstant} impulses/kWh`;
 }
 
@@ -226,10 +235,12 @@ function stopMeasurement() {
   stopMeasurementButton.disabled = true;
   if (recentIntervals.length) {
     updatePowerDisplay();
-    powerDetail.textContent += ' • Measurement stopped';
+    powerDetail.textContent += ` • ${flashCount} pulses detected • Measurement stopped`;
   } else {
     powerDisplay.textContent = 'Power: —';
-    powerDetail.textContent = 'No complete pulse interval recorded.';
+    powerDetail.textContent = flashCount
+      ? `${flashCount} pulse detected • Need at least two pulses.`
+      : 'No pulses detected.';
   }
 }
 
@@ -237,10 +248,19 @@ function resetMeasurement() {
   measurementRunning = false;
   pulseTimes = [];
   recentIntervals = [];
+  values = [];
+  flashCount = 0;
+  lastFlash = 0;
+  baseline = null;
+  armed = true;
+  peak = 0;
+  countEl.textContent = '0';
+  lastEl.textContent = '—';
   startMeasurementButton.disabled = false;
   stopMeasurementButton.disabled = true;
   powerDisplay.textContent = 'Power: —';
   powerDetail.textContent = 'Ready to measure.';
+  drawGraph();
 }
 
 startMeasurementButton.addEventListener('click', startMeasurement);
@@ -288,6 +308,7 @@ function updatePowerDisplay() {
     : `Power: ${watts.toFixed(0)} W`;
 
   powerDetail.textContent =
+    `Based on ${recentIntervals.length} pulse interval${recentIntervals.length === 1 ? '' : 's'} • ` +
     `Pulse interval: ${medianInterval.toFixed(2)} s • ${meterConstant} impulses/kWh`;
 }
 
@@ -307,6 +328,7 @@ let stream = null, track = null, torchOn = false;
 let values = [], flashCount = 0, lastFlash = 0;
 let baseline = null, armed = true, peak = 0;
 let lastFrame = 0;
+let lastGraphDraw = 0;
 
 function setStatus(s, flash=false) {
   statusEl.textContent = s;
@@ -433,6 +455,8 @@ function drawGraph() {
 }
 
 function detectFlash(v) {
+  if (!measurementRunning) return;
+
   const now = performance.now();
 
   // Slowly adapt baseline while not in a pulse.
@@ -474,9 +498,15 @@ function loop(ts) {
     const v = analyze();
     if (v !== null) {
       values.push(v);
-      if (values.length > 100) values.shift();
-      drawGraph();
+      if (values.length > 5000) values.shift();
       detectFlash(v);
+
+      // The detector runs on every available frame; the graph only needs
+      // to redraw about 10 times per second.
+      if (ts - lastGraphDraw >= 100) {
+        lastGraphDraw = ts;
+        drawGraph();
+      }
     }
   }
   requestAnimationFrame(loop);
