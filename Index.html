@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Meter Flash Detector</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #000; color: #fff;
+    font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    min-height: 100vh; display: flex; flex-direction: column;
+  }
+  #camera { width: 100%; height: 62vh; object-fit: cover; background:#111; }
+  .overlay {
+    position: absolute; inset: 0; pointer-events:none;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .target {
+    width: min(10.5vw, 55px); height: min(10.5vw, 55px);
+    border: 2px solid rgba(255,255,255,.85);
+    border-radius: 12px;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,.18);
+  }
+  .hint { position:absolute; top:14px; left:0; right:0; text-align:center;
+          font-size:14px; text-shadow:0 1px 4px #000; }
+  .panel { padding: 18px 20px 28px; display:grid; gap:12px; }
+  .status { font-size:22px; font-weight:700; }
+  .grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+  .card { background:#171717; border-radius:12px; padding:12px; }
+  .label { color:#aaa; font-size:12px; }
+  .value { font-size:24px; margin-top:4px; font-variant-numeric:tabular-nums; }
+  button {
+    border:0; border-radius:12px; padding:13px 16px; font-size:16px;
+    background:#fff; color:#000; font-weight:650;
+  }
+  button:disabled { opacity:.5; }
+  #graph { width:100%; height:90px; background:#111; border-radius:12px; }
+  .small { color:#999; font-size:12px; line-height:1.4; }
+  #flash { color:#ff3b30; }
+</style>
+</head>
+<body>
+<div style="position:relative">
+  <video id="camera" autoplay playsinline muted></video>
+  <div class="overlay">
+    <div class="target"></div>
+    <div class="hint">Place the meter's red LED inside the box</div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="status" id="status">Camera not started</div>
+  <div class="small" id="cameraInfo">Camera settings: —</div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="label">RED INTENSITY</div>
+      <div class="value" id="intensity">0</div>
+    </div>
+    <div class="card">
+      <div class="label">FLASHES</div>
+      <div class="value" id="count">0</div>
+    </div>
+    <div class="card">
+      <div class="label">LAST FLASH</div>
+      <div class="value" id="last">—</div>
+    </div>
+  </div>
+
+  <canvas id="graph" width="600" height="120"></canvas>
+  <button id="start">Start camera</button>
+  <button id="torch" disabled>Turn flashlight on</button>
+  <div class="small">
+    Prototype only. The prototype requests up to 120 FPS (with 60 FPS minimum) and displays the actual camera settings provided by the browser. The detector analyzes every available frame.
+    No camera frames are uploaded or stored.
+  </div>
+</div>
+
+<canvas id="analysis" width="120" height="120" hidden></canvas>
+
+<script>
+const video = document.getElementById('camera');
+const canvas = document.getElementById('analysis');
+const ctx = canvas.getContext('2d', {willReadFrequently:true});
+const graph = document.getElementById('graph');
+const g = graph.getContext('2d');
+const startBtn = document.getElementById('start');
+const torchBtn = document.getElementById('torch');
+const statusEl = document.getElementById('status');
+const intensityEl = document.getElementById('intensity');
+const countEl = document.getElementById('count');
+const lastEl = document.getElementById('last');
+
+let stream = null, track = null, torchOn = false;
+let values = [], flashCount = 0, lastFlash = 0;
+let baseline = null, armed = true, peak = 0;
+let lastFrame = 0;
+
+function setStatus(s, flash=false) {
+  statusEl.textContent = s;
+  statusEl.id = flash ? 'flash' : 'status';
+}
+
+async function startCamera() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: {ideal:'environment'},
+        width: {ideal:1280},
+        height: {ideal:720},
+        frameRate: {ideal:120, min:60}
+      },
+      audio: false
+    });
+    video.srcObject = stream;
+    await video.play();
+    track = stream.getVideoTracks()[0];
+
+    const settings = track.getSettings ? track.getSettings() : {};
+    const fps = settings.frameRate ? settings.frameRate.toFixed(1) : 'unknown';
+    const resolution = settings.width && settings.height ? `${settings.width} × ${settings.height}` : 'unknown';
+    document.getElementById('cameraInfo').textContent =
+      `Camera settings: ${resolution} • ${fps} FPS`;
+
+    const caps = track.getCapabilities ? track.getCapabilities() : {};
+    if (caps.torch) torchBtn.disabled = false;
+
+    startBtn.disabled = true;
+    startBtn.textContent = 'Camera running';
+    setStatus('Position the LED inside the box');
+    requestAnimationFrame(loop);
+  } catch (e) {
+    setStatus('Camera access failed: ' + e.message);
+  }
+}
+
+async function toggleTorch() {
+  if (!track) return;
+  const caps = track.getCapabilities ? track.getCapabilities() : {};
+  if (!caps.torch) {
+    setStatus('This browser/device does not expose flashlight control');
+    return;
+  }
+  torchOn = !torchOn;
+  try {
+    await track.applyConstraints({advanced:[{torch: torchOn}]});
+    torchBtn.textContent = torchOn ? 'Turn flashlight off' : 'Turn flashlight on';
+  } catch (e) {
+    setStatus('Could not change flashlight');
+  }
+}
+
+function analyze() {
+  const vw = video.videoWidth, vh = video.videoHeight;
+  if (!vw || !vh) return null;
+
+  // Analyze the central region corresponding approximately to the UI target.
+  const size = Math.min(vw, vh) * 0.06;
+  const sx = (vw - size) / 2;
+  const sy = (vh - size) / 2;
+  canvas.width = canvas.height = 120;
+  ctx.drawImage(video, sx, sy, size, size, 0, 0, 120, 120);
+  const data = ctx.getImageData(0,0,120,120).data;
+
+  let score = 0, n = 0;
+  for (let i=0; i<data.length; i+=4) {
+    const r=data[i], gr=data[i+1], b=data[i+2];
+    // Favor pixels that are both bright and red-dominant.
+    const red = Math.max(0, r - Math.max(gr,b));
+    if (red > 15 && r > 35) {
+      score += red;
+      n++;
+    }
+  }
+  return n ? score / n : 0;
+}
+
+function drawGraph() {
+  const w=graph.width, h=graph.height;
+  g.clearRect(0,0,w,h);
+  g.strokeStyle='#444'; g.lineWidth=1;
+  g.beginPath(); g.moveTo(0,h-1); g.lineTo(w,h-1); g.stroke();
+
+  if (values.length < 2) return;
+  const max = Math.max(30, ...values);
+  g.strokeStyle='#ff3b30'; g.lineWidth=3;
+  g.beginPath();
+  values.forEach((v,i)=>{
+    const x=i*(w-1)/(values.length-1);
+    const y=h-8-(v/max)*(h-16);
+    if(i===0) g.moveTo(x,y); else g.lineTo(x,y);
+  });
+  g.stroke();
+}
+
+function detectFlash(v) {
+  const now = performance.now();
+
+  // Slowly adapt baseline while not in a pulse.
+  if (baseline === null) baseline = v;
+
+  const delta = v - baseline;
+  const threshold = Math.max(18, baseline * 0.65);
+
+  if (armed && delta > threshold) {
+    flashCount++;
+    countEl.textContent = flashCount;
+    lastEl.textContent = new Date().toLocaleTimeString();
+    setStatus('FLASH DETECTED', true);
+    lastFlash = now;
+    peak = v;
+    armed = false;
+  }
+
+  if (!armed) {
+    peak = Math.max(peak, v);
+    // Re-arm once the signal falls sufficiently below the detected peak.
+    if (v < Math.max(8, peak * 0.55)) {
+      armed = true;
+      setStatus('Watching for next flash');
+    }
+  }
+
+  if (armed) {
+    baseline = baseline * 0.97 + v * 0.03;
+  }
+}
+
+function loop(ts) {
+  if (!stream) return;
+  // Analyze every animation frame available from the browser.
+  if (ts !== lastFrame) {
+    lastFrame = ts;
+    const v = analyze();
+    if (v !== null) {
+      intensityEl.textContent = v.toFixed(1);
+      values.push(v);
+      if (values.length > 100) values.shift();
+      drawGraph();
+      detectFlash(v);
+    }
+  }
+  requestAnimationFrame(loop);
+}
+
+startBtn.addEventListener('click', startCamera);
+torchBtn.addEventListener('click', toggleTorch);
+</script>
+</body>
+</html>
