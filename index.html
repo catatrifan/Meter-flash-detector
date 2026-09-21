@@ -93,6 +93,16 @@
 <div class="panel">
   <div class="status" id="status">Camera not started</div>
   <div class="small" id="cameraInfo">Camera settings: —</div>
+  <div class="settings">
+    <label for="meterConstant">Meter constant (impulses/kWh)</label>
+    <div class="setting-row">
+      <input id="meterConstant" type="number" min="1" step="1" value="1000">
+      <button id="saveMeterConstant">Save</button>
+    </div>
+    <div id="powerDisplay" class="power-display">Power: —</div>
+    <div id="powerDetail" class="power-detail">Waiting for two pulses...</div>
+  </div>
+
 
   <div class="grid">
     <div class="card">
