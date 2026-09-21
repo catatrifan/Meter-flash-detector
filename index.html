@@ -79,6 +79,17 @@
   opacity: .7;
 }
 
+
+.measurement-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.measurement-actions button {
+  min-width: 80px;
+}
+
 </style>
 </head>
 <body>
@@ -94,14 +105,27 @@
   <div class="status" id="status">Camera not started</div>
   <div class="small" id="cameraInfo">Camera settings: —</div>
   <div class="settings">
-    <label for="meterConstant">Meter constant (impulses/kWh)</label>
-    <div class="setting-row">
-      <input id="meterConstant" type="number" min="1" step="1" value="1000">
-      <button id="saveMeterConstant">Save</button>
-    </div>
-    <div id="powerDisplay" class="power-display">Power: —</div>
-    <div id="powerDetail" class="power-detail">Waiting for two pulses...</div>
+  <label for="meterPreset">Meter constant</label>
+  <select id="meterPreset">
+    <option value="1000">1000 impulses/kWh</option>
+    <option value="2000">2000 impulses/kWh</option>
+    <option value="3000">3000 impulses/kWh</option>
+    <option value="4000">4000 impulses/kWh</option>
+    <option value="5000">5000 impulses/kWh</option>
+    <option value="custom">Custom</option>
+  </select>
+  <div id="customMeterRow" class="setting-row" style="display:none;">
+    <input id="meterConstant" type="number" min="1" step="1" value="1000" placeholder="Impulses/kWh">
+    <button id="saveMeterConstant" type="button">Save</button>
   </div>
+  <div id="powerDisplay" class="power-display">Power: —</div>
+  <div id="powerDetail" class="power-detail">Waiting for two pulses...</div>
+  <div class="measurement-actions">
+    <button id="startMeasurement" type="button">Start</button>
+    <button id="stopMeasurement" type="button" disabled>Stop</button>
+    <button id="resetMeasurement" type="button">Reset</button>
+  </div>
+</div>
 
 
   <div class="grid">
@@ -130,28 +154,102 @@
 
 const METER_CONSTANT_KEY = 'meterConstant';
 let meterConstant = Number(localStorage.getItem(METER_CONSTANT_KEY)) || 1000;
+let measurementRunning = false;
 let pulseTimes = [];
 let recentIntervals = [];
+
+const meterPreset = document.getElementById('meterPreset');
+const customMeterRow = document.getElementById('customMeterRow');
 const meterConstantInput = document.getElementById('meterConstant');
 const saveMeterConstantButton = document.getElementById('saveMeterConstant');
 const powerDisplay = document.getElementById('powerDisplay');
 const powerDetail = document.getElementById('powerDetail');
+const startMeasurementButton = document.getElementById('startMeasurement');
+const stopMeasurementButton = document.getElementById('stopMeasurement');
+const resetMeasurementButton = document.getElementById('resetMeasurement');
 
-meterConstantInput.value = meterConstant;
+const presets = [1000, 2000, 3000, 4000, 5000];
 
-saveMeterConstantButton.addEventListener('click', () => {
-  const value = Number(meterConstantInput.value);
-  if (!Number.isFinite(value) || value <= 0) {
-    powerDetail.textContent = 'Enter a valid meter constant.';
-    return;
+function selectInitialMeterPreset() {
+  if (presets.includes(meterConstant)) {
+    meterPreset.value = String(meterConstant);
+    customMeterRow.style.display = 'none';
+  } else {
+    meterPreset.value = 'custom';
+    meterConstantInput.value = meterConstant;
+    customMeterRow.style.display = 'flex';
   }
-  meterConstant = value;
-  localStorage.setItem(METER_CONSTANT_KEY, String(value));
-  powerDetail.textContent = `Using ${value} impulses/kWh`;
+}
+
+function setMeterConstant(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    powerDetail.textContent = 'Enter a valid meter constant.';
+    return false;
+  }
+  meterConstant = numeric;
+  localStorage.setItem(METER_CONSTANT_KEY, String(numeric));
   updatePowerDisplay();
+  return true;
+}
+
+meterPreset.addEventListener('change', () => {
+  if (meterPreset.value === 'custom') {
+    customMeterRow.style.display = 'flex';
+    meterConstantInput.value = meterConstant;
+    meterConstantInput.focus();
+  } else {
+    customMeterRow.style.display = 'none';
+    setMeterConstant(Number(meterPreset.value));
+  }
 });
 
+saveMeterConstantButton.addEventListener('click', () => {
+  if (setMeterConstant(meterConstantInput.value)) {
+    powerDetail.textContent = `Using ${meterConstant} impulses/kWh`;
+  }
+});
+
+function startMeasurement() {
+  pulseTimes = [];
+  recentIntervals = [];
+  measurementRunning = true;
+  startMeasurementButton.disabled = true;
+  stopMeasurementButton.disabled = false;
+  updatePowerDisplay();
+  powerDetail.textContent = `Measuring • ${meterConstant} impulses/kWh`;
+}
+
+function stopMeasurement() {
+  measurementRunning = false;
+  startMeasurementButton.disabled = false;
+  stopMeasurementButton.disabled = true;
+  if (recentIntervals.length) {
+    updatePowerDisplay();
+    powerDetail.textContent += ' • Measurement stopped';
+  } else {
+    powerDisplay.textContent = 'Power: —';
+    powerDetail.textContent = 'No complete pulse interval recorded.';
+  }
+}
+
+function resetMeasurement() {
+  measurementRunning = false;
+  pulseTimes = [];
+  recentIntervals = [];
+  startMeasurementButton.disabled = false;
+  stopMeasurementButton.disabled = true;
+  powerDisplay.textContent = 'Power: —';
+  powerDetail.textContent = 'Ready to measure.';
+}
+
+startMeasurementButton.addEventListener('click', startMeasurement);
+stopMeasurementButton.addEventListener('click', stopMeasurement);
+resetMeasurementButton.addEventListener('click', resetMeasurement);
+
 function registerPulseForPower() {
+  if (!measurementRunning) return;
+
   const now = performance.now();
 
   if (pulseTimes.length) {
@@ -171,11 +269,12 @@ function registerPulseForPower() {
 function updatePowerDisplay() {
   if (!recentIntervals.length) {
     powerDisplay.textContent = 'Power: —';
-    powerDetail.textContent = 'Waiting for two pulses...';
+    powerDetail.textContent = measurementRunning
+      ? `Waiting for two pulses • ${meterConstant} impulses/kWh`
+      : 'Ready to measure.';
     return;
   }
 
-  // Median interval reduces the effect of occasional noisy measurements.
   const sorted = [...recentIntervals].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   const medianInterval = sorted.length % 2
@@ -184,16 +283,15 @@ function updatePowerDisplay() {
 
   const watts = 3600000 / (medianInterval * meterConstant);
 
-  if (watts >= 1000) {
-    powerDisplay.textContent = `Power: ${(watts / 1000).toFixed(2)} kW`;
-  } else {
-    powerDisplay.textContent = `Power: ${watts.toFixed(0)} W`;
-  }
+  powerDisplay.textContent = watts >= 1000
+    ? `Power: ${(watts / 1000).toFixed(2)} kW`
+    : `Power: ${watts.toFixed(0)} W`;
 
   powerDetail.textContent =
     `Pulse interval: ${medianInterval.toFixed(2)} s • ${meterConstant} impulses/kWh`;
 }
 
+selectInitialMeterPreset();
 const video = document.getElementById('camera');
 const canvas = document.getElementById('analysis');
 const ctx = canvas.getContext('2d', {willReadFrequently:true});
