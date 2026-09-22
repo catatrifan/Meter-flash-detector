@@ -227,7 +227,7 @@ function updatePowerDisplay(){
   const elapsedMs=performance.now()-firstPulseTime;
   const completeIntervals=measurementPulseCount-1;
   const averageWatts=completeIntervals>0&&elapsedMs>0
-    ?(completeIntervals*3600000)/(elapsedMs*meterConstant)
+    ?(completeIntervals*POWER_FACTOR_MILLISECONDS)/(elapsedMs*meterConstant)
     :null;
   const instantWatts=POWER_FACTOR_SECONDS/(latestInterval*meterConstant);
   setLivePower(instantWatts,averageWatts);
