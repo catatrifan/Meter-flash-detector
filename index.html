@@ -229,6 +229,7 @@ function updatePowerDisplay(){
   powerDisplay.textContent='Average power: '+formatPower(averageWatts);
   powerDetail.textContent='Based on '+completeIntervals+' complete pulse interval'+(completeIntervals===1?'':'s')+' since first pulse • Elapsed: '+(elapsedMs/1000).toFixed(1)+' s • '+meterConstant+' impulses/kWh';
 }selectInitialMeterPreset();
+const torchOverlay=document.getElementById('torchOverlay');
 const video=document.getElementById('camera'),canvas=document.getElementById('analysis'),ctx=canvas.getContext('2d',{willReadFrequently:true}),graph=document.getElementById('graph'),g=graph.getContext('2d'),startBtn=document.getElementById('start'),statusEl=document.getElementById('status'),countEl=document.getElementById('count'),lastEl=document.getElementById('last');
 let stream=null,track=null,torchOn=false,values=[],flashCount=0,lastFlash=0,baseline=null,armed=true,peak=0,lastFrame=0,lastGraphDraw=0,signalPeak=0,signalStart=0,signalRising=false,lastDetectedPulse=-Infinity;
 function setStatus(s,flash=false){statusEl.textContent=s;statusEl.id=flash?'flash':'status';}
