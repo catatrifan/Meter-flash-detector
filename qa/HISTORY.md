@@ -94,3 +94,14 @@
 - Added T21 to TEST_PLAN.md for a known 3.6-second / 1000 imp/kWh calculation check.
 - The earlier QA-021 finding that 3,600,000,000 was too large remains a documented invalid historical finding and is superseded by the unit-aligned implementation.
 - No physical iPhone/meter test was performed.
+
+
+## 2026-09-23 — Measurement controls redesign
+- Replaced Meter constant/presets with an explicitly entered Impulse constant; no preset or persisted value is used.
+- Start now requires a valid constant and reports a validation message otherwise.
+- Replaced Stop with Pause and added Start-based resume behavior.
+- Added active measurement timer (hh:mm:ss) inside Start, excluding paused time.
+- Added pulse and reading statistics requested by the product UI.
+- Changed graph x-axis labels from Older/Latest to elapsed measurement time.
+- Added T22–T26 regression tests to TEST_PLAN.md.
+- No physical-device tests were performed.
