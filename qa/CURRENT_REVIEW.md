@@ -265,3 +265,36 @@ The same malformed escaping also affects the live-power CSS rules, so the overla
 **Expected:** `index.html` must contain actual newlines between HTML/CSS/JavaScript constructs, with no unintended literal `\\n` sequences outside string literals.
 
 **Verification:** Load the deployed page in Safari and desktop browser console; confirm zero JavaScript syntax errors, Start camera handler works, both power cards remain inside the camera overlay without covering the target, and no literal \\n text is visible.
+
+
+## Latest re-review — 2026-09-22
+
+### QA-017 verification
+- **QA-017:** VERIFIED by static review.
+- The current `index.html` contains **0 literal \\n sequences**.
+- The embedded JavaScript was independently syntax-checked and parses successfully.
+- The live-power CSS is now present as valid CSS rules.
+- The Measurement history markup no longer contains a literal escaped newline.
+- This addresses the code-level causes of the previously reported camera-start failure, misplaced power overlay styling, and visible \\n text.
+
+### Other previous findings
+- **QA-015:** FIXED by static inspection. The averaging window now starts at the first detected pulse (`firstPulseTime`) and uses complete pulse intervals only, avoiding the incomplete first interval bias.
+- **QA-016:** FIXED by static inspection. `pagehide` now restores the Start camera button/UI state, and a `pageshow` handler synchronizes the camera-start state after restoration.
+- **QA-010:** STILL OPEN. Red detection was tightened to red-excess/ratio thresholds and minimum 10 qualifying / 7 clustered pixels, but static review cannot establish that this is sufficient against real reflections or red objects.
+- **QA-001:** PARTIALLY FIXED — requestVideoFrameCallback remains; actual iPhone/Safari cadence is unverified.
+- **QA-002:** PARTIALLY FIXED — stronger spatial/color thresholds reduce false positives; physical verification remains required.
+- **QA-003:** PARTIALLY FIXED — exposure/white-balance behavior remains unverified and there is no explicit exposure-change normalization.
+- **QA-004/005/006/008/009:** FIXED by static inspection; device/runtime verification remains where applicable.
+- **QA-007/012/014:** PARTIALLY FIXED — the UI is clearer, but accepted pulse confidence is still not equivalent to demonstrated measurement stability.
+- **QA-013:** FIXED.
+
+### New regression check
+No new static regression identified in the latest build. The latest commits specifically address the script escaping, cumulative average calculation, red detection thresholds, lifecycle UI state, and power updates.
+
+### Physical/runtime status
+No physical iPhone/Safari + electricity-meter testing was performed. Therefore camera startup, overlay positioning on the actual viewport, pulse detection, false-positive resistance, frame cadence, torch behavior, exposure changes, and real-world power accuracy remain unverified.
+
+### Current verdict
+**READY FOR CONTROLLED PHYSICAL TESTING; NOT READY TO CLAIM REAL-WORLD MEASUREMENT ACCURACY.**
+
+The previous release-blocking QA-017 regression is statically fixed. The next priority is actual iPhone/Safari testing, especially T01, T02–T07, T09–T12, and T18.
