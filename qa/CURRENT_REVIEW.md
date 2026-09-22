@@ -382,3 +382,49 @@ Additional structural regression observed in the same file:
 **BLOCKED — NOT READY FOR CONTROLLED PHYSICAL TESTING.**
 
 The current repository state must first restore the application JavaScript and valid document structure. No application code was changed by QA during this review.
+
+
+## Latest independent QA re-review — 2026-09-23 (post QA-019)
+
+### QA-019 re-check
+**Status: FIXED by static inspection**
+
+The current `index.html` now contains one application `<script>` block and the previously missing JavaScript has been restored. The document has one closing `</body>` tag and no literal escaped-newline sequences.
+
+### QA-020 — BLOCKER — Camera startup function uses await in a non-async function
+**Status: OPEN**  
+**Evidence: STATIC REVIEW**
+
+The current source declares `startCamera(){...}` rather than `async function startCamera(){...}`, but the function contains `await navigator.mediaDevices.getUserMedia(...)` and `await video.play()`.
+
+Because `await` is used inside a non-async function, the JavaScript parser will reject the entire script. Consequently none of the application event listeners or camera/measurement logic can execute.
+
+**Expected:** Declare `startCamera` as an async function (or otherwise remove await usage).
+
+**Verification:** Run the embedded script through a JavaScript parser and load the page in a browser console; confirm no syntax error and that Start camera attaches and executes.
+
+### QA-021 — BLOCKER — Average-power calculation is off by 1000×
+**Status: OPEN**  
+**Evidence: STATIC REVIEW**
+
+Both average-power calculations currently use:
+
+`completeIntervals * 3600000000 / (elapsedMs * meterConstant)`
+
+The instantaneous calculation correctly uses `3600000 / (interval * meterConstant)`. The cumulative average should use the same energy constant of 3,600,000, not 3,600,000,000.
+
+For example, with a 1000 impulses/kWh meter and a 3.6-second pulse interval, the expected power is approximately 1000 W. The current average formula produces approximately **1,000,000 W** for the same interval.
+
+This is a direct measurement-correctness blocker.
+
+**Expected:** Use 3,600,000 in the cumulative-average formula, consistent with the instantaneous-power formula.
+
+**Verification:** T02–T05, plus a static formula check against known intervals.
+
+### Additional observation
+The current source has duplicate CSS declarations and some duplicated UI assignments, but these are lower priority than QA-020 and QA-021. No physical-device tests have been performed.
+
+### Current verdict
+**BLOCKED — NOT READY FOR CONTROLLED PHYSICAL TESTING.**
+
+The missing-JavaScript regression (QA-019) is now statically resolved, but the restored script currently contains two new release-blocking defects: a JavaScript syntax error in camera startup and a 1000× cumulative-average calculation error.
