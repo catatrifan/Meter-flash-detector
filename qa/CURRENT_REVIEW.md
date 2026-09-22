@@ -298,3 +298,31 @@ No physical iPhone/Safari + electricity-meter testing was performed. Therefore c
 **READY FOR CONTROLLED PHYSICAL TESTING; NOT READY TO CLAIM REAL-WORLD MEASUREMENT ACCURACY.**
 
 The previous release-blocking QA-017 regression is statically fixed. The next priority is actual iPhone/Safari testing, especially T01, T02–T07, T09–T12, and T18.
+
+### Latest re-review — 2026-09-22 — post power/detector fixes
+
+#### Power calculation / display re-check
+- **QA-013:** VERIFIED by static review. The previous last-five/median implementation is gone. The UI is labeled **AVERAGE POWER · SINCE START**.
+- **QA-014:** PARTIALLY FIXED. The UI exposes separate instant and cumulative-average values. A stable real-world measurement criterion is still not established and requires physical testing.
+- **QA-015:** VERIFIED by static review. The averaging window begins at `firstPulseTime`, which is set on the first accepted pulse. The average uses `measurementPulseCount - 1` complete intervals over the elapsed time from the first to the latest pulse.
+- **Power update path:** VERIFIED by static inspection in commit `46d862e5a5976d3c6540dd1d7c8bc8a28faacf56`. Every accepted pulse increments `measurementPulseCount`; every accepted second-or-later pulse calculates instant power from the latest interval and cumulative average power from all complete intervals since the first pulse; both overlay values are updated explicitly.
+
+This addresses the code-level cause of the previously reported condition where accepted pulses could exist without the power displays being populated. Runtime verification on the deployed build is still required.
+
+#### Detector re-check
+- **QA-010:** STILL OPEN. The detector now requires stronger red excess, red-channel minimum, red-ratio threshold, minimum qualifying area, clustered area, and higher cluster density. This is a material reduction in reflection risk, but only physical tests T06, T07, and T16 can establish whether real reflections still trigger pulses.
+- **QA-002:** PARTIALLY FIXED. Stronger color and spatial thresholds are present; physical verification remains required.
+
+#### Runtime verification required
+No physical iPhone/Safari test was performed during this re-review. The following must still be tested on the deployed build:
+- T01 camera startup
+- T02–T05 known-load power readings
+- T06/T07/T16 false-positive resistance
+- T09/T10 exposure and torch changes
+- T12 lifecycle/backgrounding
+- T18 actual frame cadence
+
+#### Current verdict
+**READY FOR CONTROLLED PHYSICAL TESTING; NOT READY TO CLAIM REAL-WORLD MEASUREMENT ACCURACY.**
+
+The current code passes the static re-check for the cumulative-average calculation and power-display update path. If the deployed build still shows no instant/average power while the pulse counter increments, that is now a deployment/runtime regression rather than the calculation logic identified in the source review.
