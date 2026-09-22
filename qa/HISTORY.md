@@ -52,3 +52,9 @@
 - Red detection thresholds were tightened; QA-010 remains open pending physical false-positive testing.
 - No physical iPhone/meter testing was performed.
 - Current status: suitable for controlled physical testing, but real-world measurement accuracy remains unverified.
+
+
+## 2026-09-22 — QA review of average-power report
+- Inspected the latest `index.html` after the user reported that Average Power is not working.
+- Added QA-018: average power is only recalculated on accepted pulse events, can remain blank until the second valid pulse, and can remain stale between pulses. The valid-interval accounting also increments the pulse counter before interval validation.
+- No physical iPhone/meter test was performed; the reported runtime symptom is treated as user-provided evidence, not independently reproduced.
