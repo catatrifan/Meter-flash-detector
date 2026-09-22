@@ -112,7 +112,7 @@ function registerPulseForPower(){
       const elapsedMs=now-firstPulseTime;
       const completeIntervals=measurementPulseCount-1;
       const averageWatts=completeIntervals>0&&elapsedMs>0
-        ?(completeIntervals*3600000)/(elapsedMs*meterConstant)
+        ?(completeIntervals*3600000000)/(elapsedMs*meterConstant)
         :null;
       powerHistory.push({time:Date.now(),watts:instantWatts});
       const cutoff=Date.now()-5*60*1000;
