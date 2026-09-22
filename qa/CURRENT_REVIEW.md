@@ -6,6 +6,8 @@ Independent re-review of the current Meter Flash Detector implementation on the 
 ## Overall status
 **READY FOR CONTROLLED PHYSICAL TESTING, NOT READY TO CLAIM REAL-WORLD MEASUREMENT ACCURACY.**
 
+The latest build adds live instant/rolling power displays and changes the graph from red-signal history to detected power history. The earlier detector fixes remain present. No physical-device evidence is available to QA.
+
 The implementation now addresses several static issues from the first review, notably camera-frame sampling, canvas resizing, backgrounding, camera-start cleanup, and meter-constant reset behavior. However, real-world reliability remains unverified, and the spatial red detector still has a meaningful false-positive risk.
 
 ## Previous findings
@@ -104,6 +106,32 @@ This is not a measurement-correctness blocker.
 
 ## New findings
 
+### QA-013 — MEDIUM — “Average power” display is actually a median-based calculation
+**Status:** OPEN  
+**Evidence:** STATIC REVIEW
+
+The UI labels the top-right value “AVERAGE POWER · LAST 5 READINGS”, but the implementation sorts the last up-to-five pulse intervals and calculates the median interval, then converts that median interval to watts. That is not the arithmetic average of the last five power readings.
+
+This may be an intentional robust estimator, but the label is factually misleading and can cause users to interpret the value incorrectly.
+
+**Expected:** Either label it as median/robust power based on the last five intervals, or calculate the actual average of the last five power readings.
+
+**Verification:** Compare the displayed value with a dataset containing unequal pulse intervals.
+
+### QA-014 — MEDIUM — New live power UI does not establish measurement stability
+**Status:** OPEN  
+**Evidence:** STATIC REVIEW
+
+The new “INSTANT POWER” display is populated after any accepted interval, while the “AVERAGE POWER · LAST 5 READINGS” display remains blank until five intervals have been collected. The UI therefore introduces a prominent power value before there is enough repeated evidence to establish stable measurement.
+
+The existing lower panel still calls the two-interval value “Power”, rather than clearly distinguishing a provisional estimate from a stable measurement.
+
+**Expected:** Keep provisional/instant values visually distinct from a stable reading, and define a clear stability criterion based on multiple intervals and consistency.
+
+**Verification:** Start measurement and observe the UI after exactly two, three, four, and five accepted intervals.
+
+## New findings
+
 ### QA-010 — HIGH — Spatial filter can accept very small coherent red objects
 **Status: OPEN**  
 **Evidence: STATIC REVIEW**
@@ -137,6 +165,8 @@ The detector sets Detection: high confidence immediately after one accepted puls
 **Verification:** T02–T05 and noisy/reflection tests.
 
 ## Regressions found
+
+No detector-state regression was identified in static inspection. The new power-history graph is a functional redesign rather than a direct regression, but its “average” label is inaccurate as described in QA-013.
 
 No clear regression from QA-001 through QA-009 was identified in static inspection.
 
