@@ -428,3 +428,17 @@ The current source has duplicate CSS declarations and some duplicated UI assignm
 **BLOCKED — NOT READY FOR CONTROLLED PHYSICAL TESTING.**
 
 The missing-JavaScript regression (QA-019) is now statically resolved, but the restored script currently contains two new release-blocking defects: a JavaScript syntax error in camera startup and a 1000× cumulative-average calculation error.
+
+
+### QA-021 correction — 2026-09-23
+**Status: REJECTED / INVALID FINDING**
+
+QA-021 incorrectly concluded that 3,600,000,000 is 1000× too large for the cumulative average. The implementation's elapsedMs value is explicitly measured in milliseconds (performance.now() - firstPulseTime). Therefore the cumulative formula must use 3,600,000,000 when dividing directly by elapsed milliseconds. The equivalent seconds-based formula uses 3,600,000 after converting elapsed milliseconds to seconds.
+
+Correct relationship:
+- Instant power: 3,600,000 / (intervalSeconds × meterConstant).
+- Cumulative average: (completeIntervals × 3,600,000,000) / (elapsedMs × meterConstant).
+
+Example: 1000 impulses/kWh and a 3.6-second interval gives approximately 1000 W. QA must not recommend replacing 3,600,000,000 with 3,600,000 unless elapsedMs is first converted to seconds.
+
+This correction supersedes the previous QA-021 conclusion. Future reviews should verify units/dimensions before recommending a change to this formula.
