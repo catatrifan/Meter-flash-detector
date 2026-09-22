@@ -100,8 +100,6 @@ startMeasurementButton.addEventListener('click',startMeasurement);stopMeasuremen
 function registerPulseForPower(){
   if(!measurementRunning)return;
   const now=performance.now();
-  measurementPulseCount++;
-  if(firstPulseTime===0)firstPulseTime=now;
   let interval=null;
   if(pulseTimes.length){
     interval=(now-pulseTimes[pulseTimes.length-1])/1000;
@@ -109,8 +107,10 @@ function registerPulseForPower(){
       recentIntervals.push(interval);
       if(recentIntervals.length>5)recentIntervals.shift();
       const instantWatts=3600000/(interval*meterConstant);
-      const elapsedMs=now-firstPulseTime;
+      if(firstPulseTime===0)firstPulseTime=pulseTimes[0];
+      measurementPulseCount++;
       const completeIntervals=measurementPulseCount-1;
+      const elapsedMs=now-firstPulseTime;
       const averageWatts=completeIntervals>0&&elapsedMs>0
         ?(completeIntervals*3600000)/(elapsedMs*meterConstant)
         :null;
@@ -118,7 +118,13 @@ function registerPulseForPower(){
       const cutoff=Date.now()-5*60*1000;
       powerHistory=powerHistory.filter(p=>p.time>=cutoff);
       setLivePower(instantWatts,averageWatts);
+      powerDetail.textContent='Based on '+completeIntervals+' complete pulse interval'+(completeIntervals===1?'':'s')+' since first pulse • Elapsed: '+(elapsedMs/1000).toFixed(1)+' s • Latest interval: '+interval.toFixed(2)+' s • Instant: '+formatPower(instantWatts)+' • Average: '+formatPower(averageWatts)+' • '+meterConstant+' impulses/kWh';
+    }else{
+      powerDetail.textContent='Pulse interval rejected ('+(interval===null?'—':interval.toFixed(2))+' s) • Waiting for the next valid pulse • '+meterConstant+' impulses/kWh';
     }
+  }else{
+    firstPulseTime=now;
+    measurementPulseCount=1;
   }
   pulseTimes.push(now);
   if(pulseTimes.length>20)pulseTimes.shift();
