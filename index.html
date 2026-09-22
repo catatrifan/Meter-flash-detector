@@ -139,7 +139,7 @@
     <button id="start" type="button">Start camera</button>
   </div>
   <div class="settings">
-    <label for="meterConstant">Pulse constant</label>
+    <label for="meterConstant">Impulse constant</label>
     <input id="meterConstant" class="pulse-input" type="number" min="1" step="1" placeholder="Impulses/kWh">
     <div class="input-hint">Enter the value printed on your energy meter (impulses/kWh).</div>
     <div class="input-error" id="meterConstantError"></div>
@@ -168,7 +168,7 @@ const METER_CONSTANT_KEY='meterConstant';
 // Instant power uses intervalSeconds; cumulative average uses elapsedMs directly.
 const POWER_FACTOR_SECONDS=3600000;
 const POWER_FACTOR_MILLISECONDS=3600000000;
-let meterConstant=Number(localStorage.getItem(METER_CONSTANT_KEY))||null;
+let meterConstant=null;
 let measurementRunning=false,measurementPaused=false,pulseTimes=[],recentIntervals=[],powerHistory=[],measurementStartTime=0,firstPulseTime=0,measurementPulseCount=0,activeElapsedMs=0,lastPulseTime=0,lastPauseTime=0,measurementTimerId=null,peakInstant=null,lowestInstant=null,peakAverage=null,lowestAverage=null;
 const meterConstantInput=document.getElementById('meterConstant'),meterConstantError=document.getElementById('meterConstantError'),powerDetail=document.getElementById('powerDetail'),startMeasurementButton=document.getElementById('startMeasurement'),stopMeasurementButton=document.getElementById('stopMeasurement'),resetMeasurementButton=document.getElementById('resetMeasurement'),detectionQuality=document.getElementById('detectionQuality'),measurementTitle=document.getElementById('measurementTitle'),measurementTimer=document.getElementById('measurementTimer'),pulseCountEl=document.getElementById('pulseCount'),averagePulseIntervalEl=document.getElementById('averagePulseInterval'),timeSinceLastPulseEl=document.getElementById('timeSinceLastPulse'),peakInstantEl=document.getElementById('peakInstantPower'),lowestInstantEl=document.getElementById('lowestInstantPower'),peakAverageEl=document.getElementById('peakAveragePower'),lowestAverageEl=document.getElementById('lowestAveragePower'),helpButton=document.getElementById('helpButton'),tooltip=document.getElementById('tooltip'),tooltipClose=document.getElementById('tooltipClose');
 const presets=[1000,2000,3000,4000,5000];
@@ -196,7 +196,7 @@ function stopAverageAssessment(){}
 function startMeasurement(){
   const numeric=Number(meterConstantInput.value);
   if(!Number.isFinite(numeric)||numeric<=0){meterConstantError.textContent='Enter the Pulse constant before starting the measurement.';meterConstantInput.focus();return;}
-  meterConstant=numeric;localStorage.setItem(METER_CONSTANT_KEY,String(numeric));meterConstantError.textContent='';
+  meterConstant=numeric;meterConstantError.textContent='';
   if(measurementPaused){measurementPaused=false;measurementRunning=true;measurementStartTime=performance.now();clearDetectorState();measurementTitle.innerHTML='Measuring<span class="assessment-dots">...</span>';startMeasurementButton.disabled=true;stopMeasurementButton.disabled=false;startMeasurementTimer();powerDetail.textContent='Measurement resumed • '+meterConstant+' impulses/kWh';return;}
   measurementRunning=true;measurementPaused=false;measurementTitle.innerHTML='Measuring<span class="assessment-dots">...</span>';pulseTimes=[];recentIntervals=[];powerHistory=[];measurementStartTime=performance.now();firstPulseTime=0;measurementPulseCount=0;activeElapsedMs=0;lastPulseTime=0;lastPauseTime=0;peakInstant=null;lowestInstant=null;peakAverage=null;lowestAverage=null;values=[];flashCount=0;lastFlash=0;clearDetectorState();setLivePower(null,null);setInstantWaiting('Waiting for 2 red pulses');setAssessmentText('Assessing');startMeasurementButton.disabled=true;stopMeasurementButton.disabled=false;startMeasurementTimer();updateStatsReadings(null,null);drawGraph();detectionQuality.textContent='Detection: watching';powerDetail.textContent='Measuring • '+meterConstant+' impulses/kWh';
 }
