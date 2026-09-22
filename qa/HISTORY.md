@@ -42,3 +42,13 @@
 - Added QA-017 (BLOCKER): literal `\\n` sequences are present in HTML/CSS/JavaScript. The JavaScript occurrences make the script syntactically invalid, explaining the camera-start failure; the same malformed escaping explains the overlay styling failure and visible escaped-newline text.
 - These issues were not identified in the previous static review.
 - No physical iPhone/meter test was performed.
+
+
+## 2026-09-22 — QA re-review after QA-017 fix
+- Re-read the current QA protocol, review, test plan, history, and latest `index.html`.
+- QA-017 is **VERIFIED by static inspection**: no literal \\n sequences remain and the embedded JavaScript passes syntax validation.
+- QA-015 is fixed through first-pulse-based averaging using complete intervals only.
+- QA-016 is fixed through pagehide/pageshow camera-control synchronization.
+- Red detection thresholds were tightened; QA-010 remains open pending physical false-positive testing.
+- No physical iPhone/meter testing was performed.
+- Current status: suitable for controlled physical testing, but real-world measurement accuracy remains unverified.
