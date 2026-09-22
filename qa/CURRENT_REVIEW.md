@@ -349,3 +349,36 @@ The implementation also increments `measurementPulseCount` before validating the
 - Commit `83d299fd6bf7352e5d109e852136f65fe91245f2` adds explicit diagnostics to the power-detail line: latest interval, instant power, average power, and meter constant.
 - Static review does **not** prove why the deployed UI showed “1”; the next physical/runtime test must compare the displayed value with the displayed interval and meter constant.
 - QA-018 remains **QA VERIFYING** pending browser/device reproduction.
+
+
+## Latest independent QA re-review — 2026-09-23
+
+### QA-019 — BLOCKER — Current index.html contains no application JavaScript
+**Status: OPEN**  
+**Evidence: STATIC REVIEW**
+
+The current `main` branch `index.html` contains **zero `<script>` tags and zero `</script>` tags**. The entire application JavaScript is absent from the current file.
+
+This means the current source cannot attach the Start camera, measurement, reset, torch, detector, or power-calculation event handlers. The UI is therefore effectively static HTML/CSS.
+
+This directly explains why core behavior such as camera startup and average-power calculation cannot work from this source state.
+
+Additional structural regression observed in the same file:
+- There are **two closing `</body>` tags**.
+- The document ends with `</body></body></html>`.
+- The measurement-action block appears outside the intended camera container because of the surrounding closing `</div>` structure.
+- There are duplicate CSS declarations for several selectors, including `.live-power`, `.power-card`, `.status`, `.grid`, `.card`, `.settings`, `.power-display`, and `.measurement-actions`. These are not themselves the primary blocker, but increase regression risk.
+
+**Expected:** `index.html` must contain the complete application JavaScript and valid document structure. The Start camera, measurement, detector, power calculation, lifecycle, and torch handlers must be present and executable.
+
+**Verification:** Static inspection should confirm the application script exists and parses. Browser verification should then confirm Start camera, measurement controls, pulse detection, and power displays function.
+
+### Impact on previous findings
+- **QA-018:** Cannot be meaningfully runtime-verified against this source while the application JavaScript is absent.
+- **QA-017:** The previously verified escaped-newline issue remains absent, but the current build has a new and more severe structural regression.
+- Previous static fixes in JavaScript cannot be considered present in the current source because the JavaScript itself is missing.
+
+### Current verdict
+**BLOCKED — NOT READY FOR CONTROLLED PHYSICAL TESTING.**
+
+The current repository state must first restore the application JavaScript and valid document structure. No application code was changed by QA during this review.
