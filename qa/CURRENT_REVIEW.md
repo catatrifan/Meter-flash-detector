@@ -460,3 +460,12 @@ The application code has been aligned so all power calculations use the named co
 
 #### Current status
 Static code alignment is complete. Physical/runtime verification of known-load readings remains outstanding.
+
+
+### Measurement controls redesign — 2026-09-23
+
+The measurement UI was redesigned to require an explicitly entered **Impulse constant** before starting. No preset or persisted constant is loaded. The Start button validates the field and displays a validation message when it is missing or invalid.
+
+The measurement controls now support **Pause/Start resume** rather than Stop. An hh:mm:ss timer is displayed inside Start and tracks active measurement time. The UI also exposes pulse statistics and peak/lowest instant and average readings. The graph x-axis now displays elapsed measurement time.
+
+Static review of the implementation should be followed by T22–T26 and the existing physical power tests. Pause/resume behavior and statistics have not been physically tested.
