@@ -25,6 +25,7 @@ Record actual results after each implementation milestone. Mark tests PASS, FAIL
 | T18 | Actual processed FPS observed | Processing cadence is known and documented | NOT TESTED |
 | T19 | Network inspection during use | No camera frames or unnecessary personal data uploaded | NOT TESTED |
 | T20 | Camera startup failure | Any acquired stream is cleaned up | NOT TESTED |
+| T21 | Power formula unit check | 1000 imp/kWh with a 3.6 s interval gives ~1000 W; cumulative average uses millisecond factor 3,600,000,000 when elapsedMs is used directly | NOT TESTED |
 
 ## Diagnostic trace recommended
 For controlled debugging, capture timestamp, signal score, baseline, threshold, detector state, peak, pulse event, and interval. Use this trace to distinguish missed pulses from false positives.
