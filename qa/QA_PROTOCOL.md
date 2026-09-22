@@ -68,3 +68,10 @@ Only QA can mark a finding VERIFIED.
 - Canvas should not be resized every analysis frame.
 - Measurement UI should expose enough evidence to judge reliability.
 - Changing the meter constant during a measurement should not silently reinterpret prior intervals.
+
+## Power calculation unit convention
+- `performance.now()` returns milliseconds, so `elapsedMs` and `firstPulseTime` differences are in milliseconds.
+- Instant power uses interval seconds: `3600000 / (intervalSeconds × meterConstant)`.
+- Cumulative average uses elapsed milliseconds directly: `completeIntervals × 3600000000 / (elapsedMs × meterConstant)`.
+- The two constants are mathematically equivalent because `3600000000 = 3600000 × 1000`.
+- QA must verify units before proposing a change to either factor. Replacing 3,600,000,000 with 3,600,000 without first converting milliseconds to seconds introduces a 1000× error.
