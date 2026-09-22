@@ -250,3 +250,18 @@ pagehide sets processingStarted=false, stops the stream, and clears the video so
 **READY FOR CONTROLLED PHYSICAL TESTING; NOT READY TO CLAIM REAL-WORLD MEASUREMENT ACCURACY.**
 
 The latest build resolves QA-009 statically and improves QA-002 and QA-011. The remaining major uncertainty is detector behavior with real meter LEDs, reflections, exposure changes, and actual camera cadence. QA-015 is a correctness issue in the new “Average power since Start” metric and should be addressed before treating that metric as a trustworthy average.
+
+
+### QA-017 — BLOCKER — Literal \\n sequences break the page JavaScript and overlay/layout CSS
+**Status: OPEN**  
+**Evidence: STATIC REVIEW**
+
+The current `index.html` contains literal backslash-n sequences (for example after the `.hint` CSS rule, between the live-power CSS rules, after the `Measurement history` div, and in JavaScript between statements) instead of actual line breaks. In the JavaScript, sequences such as `presets=[...];\\n  const instantPowerEl...` occur outside a string literal and make the script syntactically invalid. As a result, the event listeners and camera-start logic do not execute.
+
+The same malformed escaping also affects the live-power CSS rules, so the overlay cards are not positioned/styled as intended, and the literal \\n text under Measurement history is rendered into the page.
+
+**Why it matters:** This is a release-blocking regression: the camera cannot be started through the app's handler, the power-reader overlay can lose its intended positioning, and visible escaped-newline text appears in the UI.
+
+**Expected:** `index.html` must contain actual newlines between HTML/CSS/JavaScript constructs, with no unintended literal `\\n` sequences outside string literals.
+
+**Verification:** Load the deployed page in Safari and desktop browser console; confirm zero JavaScript syntax errors, Start camera handler works, both power cards remain inside the camera overlay without covering the target, and no literal \\n text is visible.
