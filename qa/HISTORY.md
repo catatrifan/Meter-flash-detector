@@ -76,3 +76,12 @@
 - This is a new regression more severe than the previously reported average-power issue.
 - QA made **no application-code changes** during this review; only QA documentation was updated.
 - Current verdict: **BLOCKED — NOT READY FOR CONTROLLED PHYSICAL TESTING.**
+
+
+## 2026-09-23 — QA re-review after QA-019 regression
+- QA-019 is now **FIXED by static inspection**: the application JavaScript has been restored.
+- Added **QA-020 BLOCKER**: `startCamera` uses `await` but is not declared `async`, which makes the embedded JavaScript syntactically invalid.
+- Added **QA-021 BLOCKER**: cumulative average power uses 3,600,000,000 instead of 3,600,000, producing a 1000× error.
+- No application code was changed by QA.
+- No physical iPhone/meter tests were performed.
+- Current verdict: **BLOCKED — NOT READY FOR CONTROLLED PHYSICAL TESTING.**
