@@ -73,6 +73,14 @@
   .power-detail { margin-top:4px; font-size:12px; opacity:.7; }
   .measurement-actions { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
   .measurement-actions button { min-width:80px; }
+  .pulse-section,.reading-section { margin-top:14px; padding-top:12px; border-top:1px solid #333; }
+  .section-title { color:#fff; font-size:13px; font-weight:700; margin-bottom:8px; }
+  .stat-row { display:flex; justify-content:space-between; gap:12px; padding:4px 0; font-size:13px; }
+  .stat-row .stat-label { color:#aaa; }
+  .stat-row .stat-value { color:#fff; font-variant-numeric:tabular-nums; text-align:right; }
+  .pulse-input { width:100%; padding:10px; border-radius:8px; border:1px solid #555; background:#111; color:#fff; font-size:16px; }
+  .input-hint { color:#999; font-size:12px; margin-top:5px; }
+  .input-error { color:#ff6b6b; font-size:12px; margin-top:5px; min-height:17px; }
 </style>
 </head>
 <body>
@@ -107,7 +115,7 @@
     </button>
     <div class="live-power">
       <div class="power-card">
-        <div class="measurement-title" id="measurementTitle">Press Start to begin measuring</div>
+        <div class="measurement-title" id="measurementTitle">Set Pulse constant and press Start to begin measuring</div>
         <div class="measurement-row">
           <div class="measurement-item">
             <div class="label">INSTANT POWER CONSUMPTION</div>
@@ -123,7 +131,7 @@
     </div>
 </div>
 </div>
-<div class="measurement-actions camera-measurement-actions"><button id="startMeasurement" type="button">Start</button><button id="stopMeasurement" type="button" disabled>Stop</button><button id="resetMeasurement" type="button">Reset</button></div>
+<div class="measurement-actions camera-measurement-actions"><button id="startMeasurement" type="button">Start <span id="measurementTimer">00:00:00</span></button><button id="stopMeasurement" type="button" disabled>Pause</button><button id="resetMeasurement" type="button">Reset</button></div>
 <div class="panel">
   <div class="status" id="status">Camera not started</div>
   <div class="small" id="cameraInfo">Camera settings: —</div>
@@ -131,26 +139,26 @@
     <button id="start" type="button">Start camera</button>
   </div>
   <div class="settings">
-    <label for="meterPreset">Meter constant</label>
-    <select id="meterPreset">
-      <option value="1000">1000 impulses/kWh</option><option value="2000">2000 impulses/kWh</option>
-      <option value="3000">3000 impulses/kWh</option><option value="4000">4000 impulses/kWh</option>
-      <option value="5000">5000 impulses/kWh</option><option value="custom">Custom</option>
-    </select>
-    <div id="customMeterRow" class="setting-row" style="display:none;">
-      <input id="meterConstant" type="number" min="1" step="1" value="1000" placeholder="Impulses/kWh">
-      <button id="saveMeterConstant" type="button">Save</button>
+    <label for="meterConstant">Pulse constant</label>
+    <input id="meterConstant" class="pulse-input" type="number" min="1" step="1" placeholder="Impulses/kWh">
+    <div class="input-hint">Enter the value printed on your energy meter (impulses/kWh).</div>
+    <div class="input-error" id="meterConstantError"></div>
+    <div class="pulse-section">
+      <div class="section-title">Pulses</div>
+      <div class="stat-row"><span class="stat-label">Pulses detected:</span><span class="stat-value" id="pulseCount">0</span></div>
+      <div class="stat-row"><span class="stat-label">Average time between pulses:</span><span class="stat-value" id="averagePulseInterval">—</span></div>
+      <div class="stat-row"><span class="stat-label">Time since last pulse:</span><span class="stat-value" id="timeSinceLastPulse">—</span></div>
     </div>
-    <div id="powerDisplay" class="power-display">Power: —</div>
-    <div id="powerDetail" class="power-detail">Waiting for two pulses...</div>
-    <div id="detectionQuality" class="power-detail">Detection: waiting for signal</div>
+    <div class="reading-section">
+      <div class="section-title">Readings</div>
+      <div class="stat-row"><span class="stat-label">Peak instant power:</span><span class="stat-value" id="peakInstantPower">—</span></div>
+      <div class="stat-row"><span class="stat-label">Lowest instant power:</span><span class="stat-value" id="lowestInstantPower">—</span></div>
+      <div class="stat-row"><span class="stat-label">Peak average power:</span><span class="stat-value" id="peakAveragePower">—</span></div>
+      <div class="stat-row"><span class="stat-label">Lowest average power:</span><span class="stat-value" id="lowestAveragePower">—</span></div>
+    </div>
+    <div class="power-detail" id="powerDetail">Set a Pulse constant before starting.</div>
+    <div class="power-detail" id="detectionQuality">Detection: waiting for signal</div>
   </div>
-  <div class="grid">
-    <div class="card"><div class="label">FLASHES</div><div class="value" id="count">0</div></div>
-    <div class="card"><div class="label">LAST FLASH</div><div class="value" id="last">—</div></div>
-  </div>
-  <div class="small">Measurement history</div>
-  <canvas id="graph" width="600" height="180"></canvas>
   <div class="small">Prototype only. The prototype requests up to 120 FPS (with 60 FPS minimum) and displays the actual camera settings provided by the browser. The graph shows instantaneous power over the last 5 minutes and analyzes every available video frame. No camera frames are uploaded or stored.</div>
 </div>
 <canvas id="analysis" width="120" height="120" hidden></canvas>
@@ -160,9 +168,9 @@ const METER_CONSTANT_KEY='meterConstant';
 // Instant power uses intervalSeconds; cumulative average uses elapsedMs directly.
 const POWER_FACTOR_SECONDS=3600000;
 const POWER_FACTOR_MILLISECONDS=3600000000;
-let meterConstant=Number(localStorage.getItem(METER_CONSTANT_KEY))||1000;
-let measurementRunning=false,pulseTimes=[],recentIntervals=[],powerHistory=[],measurementStartTime=0,firstPulseTime=0,measurementPulseCount=0,averageAssessmentTimer=null;
-const meterPreset=document.getElementById('meterPreset'),customMeterRow=document.getElementById('customMeterRow'),meterConstantInput=document.getElementById('meterConstant'),saveMeterConstantButton=document.getElementById('saveMeterConstant'),powerDisplay=document.getElementById('powerDisplay'),powerDetail=document.getElementById('powerDetail'),startMeasurementButton=document.getElementById('startMeasurement'),stopMeasurementButton=document.getElementById('stopMeasurement'),resetMeasurementButton=document.getElementById('resetMeasurement'),detectionQuality=document.getElementById('detectionQuality'),measurementTitle=document.getElementById('measurementTitle'),helpButton=document.getElementById('helpButton'),tooltip=document.getElementById('tooltip'),tooltipClose=document.getElementById('tooltipClose');
+let meterConstant=Number(localStorage.getItem(METER_CONSTANT_KEY))||null;
+let measurementRunning=false,measurementPaused=false,pulseTimes=[],recentIntervals=[],powerHistory=[],measurementStartTime=0,firstPulseTime=0,measurementPulseCount=0,activeElapsedMs=0,lastPulseTime=0,lastPauseTime=0,measurementTimerId=null,peakInstant=null,lowestInstant=null,peakAverage=null,lowestAverage=null;
+const meterConstantInput=document.getElementById('meterConstant'),meterConstantError=document.getElementById('meterConstantError'),powerDetail=document.getElementById('powerDetail'),startMeasurementButton=document.getElementById('startMeasurement'),stopMeasurementButton=document.getElementById('stopMeasurement'),resetMeasurementButton=document.getElementById('resetMeasurement'),detectionQuality=document.getElementById('detectionQuality'),measurementTitle=document.getElementById('measurementTitle'),measurementTimer=document.getElementById('measurementTimer'),pulseCountEl=document.getElementById('pulseCount'),averagePulseIntervalEl=document.getElementById('averagePulseInterval'),timeSinceLastPulseEl=document.getElementById('timeSinceLastPulse'),peakInstantEl=document.getElementById('peakInstantPower'),lowestInstantEl=document.getElementById('lowestInstantPower'),peakAverageEl=document.getElementById('peakAveragePower'),lowestAverageEl=document.getElementById('lowestAveragePower'),helpButton=document.getElementById('helpButton'),tooltip=document.getElementById('tooltip'),tooltipClose=document.getElementById('tooltipClose');
 const presets=[1000,2000,3000,4000,5000];
 const instantPowerEl=document.getElementById('instantPower'),averagePowerEl=document.getElementById('averagePower');
 function formatPower(watts){if(!Number.isFinite(watts))return '—';return watts>=1000?((watts/1000).toFixed(2)+' kW'):(watts.toFixed(0)+' W');}
@@ -172,68 +180,48 @@ function setInstantWaiting(text){instantPowerEl.innerHTML='<span class="state-te
 function stopAverageAssessment(){if(averageAssessmentTimer){clearInterval(averageAssessmentTimer);averageAssessmentTimer=null;}}
 function updateAverageAssessment(){if(!measurementRunning||recentIntervals.length)return;const elapsedMs=performance.now()-measurementStartTime;if(elapsedMs<3000){setAssessmentText('Assessing');return;}const upperBound=POWER_FACTOR_SECONDS/((elapsedMs/1000)*meterConstant);setAssessmentText('Estimated <'+formatPower(upperBound)+'. Assessing');}
 function selectInitialMeterPreset(){if(presets.includes(meterConstant)){meterPreset.value=String(meterConstant);customMeterRow.style.display='none';}else{meterPreset.value='custom';meterConstantInput.value=meterConstant;customMeterRow.style.display='flex';}}
-function setMeterConstant(value){const numeric=Number(value);if(!Number.isFinite(numeric)||numeric<=0){powerDetail.textContent='Enter a valid meter constant.';return false;}const changed=numeric!==meterConstant;meterConstant=numeric;localStorage.setItem(METER_CONSTANT_KEY,String(numeric));if(changed&&(measurementRunning||pulseTimes.length||recentIntervals.length)){resetMeasurement();powerDetail.textContent=`Meter constant changed to ${meterConstant} impulses/kWh • Measurement reset.`;}else updatePowerDisplay();return true;}
-meterPreset.addEventListener('change',()=>{if(meterPreset.value==='custom'){customMeterRow.style.display='flex';meterConstantInput.value=meterConstant;meterConstantInput.focus();}else{customMeterRow.style.display='none';setMeterConstant(Number(meterPreset.value));}});
-saveMeterConstantButton.addEventListener('click',()=>{if(setMeterConstant(meterConstantInput.value))powerDetail.textContent=`Using ${meterConstant} impulses/kWh`;});
+function formatPower(watts){if(!Number.isFinite(watts))return '—';return watts>=1000?((watts/1000).toFixed(2)+' kW'):(watts.toFixed(0)+' W');}
+function formatDuration(ms){if(!Number.isFinite(ms)||ms<0)return '—';const total=Math.floor(ms/1000),h=Math.floor(total/3600),m=Math.floor((total%3600)/60),sec=total%60;return [h,m,sec].map(v=>String(v).padStart(2,'0')).join(':');}
+function formatInterval(seconds){return Number.isFinite(seconds)?seconds.toFixed(1)+' s':'—';}
+function getActiveElapsedMs(now=performance.now()){return activeElapsedMs+(measurementRunning&&measurementStartTime?now-measurementStartTime:0);}
+function updateTimerAndStats(){const elapsed=getActiveElapsedMs();measurementTimer.textContent=formatDuration(elapsed);const since=lastPulseTime?Math.max(0,(measurementRunning?performance.now():lastPauseTime)-lastPulseTime):null;timeSinceLastPulseEl.textContent=since===null?'—':formatDuration(since);pulseCountEl.textContent=String(measurementPulseCount);if(recentIntervals.length)averagePulseIntervalEl.textContent=formatInterval(recentIntervals.reduce((a,b)=>a+b,0)/recentIntervals.length);}
+function setLivePower(instant,average){instantPowerEl.textContent=instant===null||!Number.isFinite(instant)?'-':formatPower(instant);averagePowerEl.textContent=average===null||!Number.isFinite(average)?'-':formatPower(average);}
+function setAssessmentText(text){averagePowerEl.innerHTML='<span class="state-text">'+text+'<span class="assessment-dots">...</span></span>';}
+function setInstantWaiting(text){instantPowerEl.innerHTML='<span class="state-text">'+text+'<span class="assessment-dots">...</span></span>';}
+function updateStatsReadings(instant,average){if(Number.isFinite(instant)){peakInstant=peakInstant===null?instant:Math.max(peakInstant,instant);lowestInstant=lowestInstant===null?instant:Math.min(lowestInstant,instant);}if(Number.isFinite(average)){peakAverage=peakAverage===null?average:Math.max(peakAverage,average);lowestAverage=lowestAverage===null?average:Math.min(lowestAverage,average);}peakInstantEl.textContent=peakInstant===null?'—':formatPower(peakInstant);lowestInstantEl.textContent=lowestInstant===null?'—':formatPower(lowestInstant);peakAverageEl.textContent=peakAverage===null?'—':formatPower(peakAverage);lowestAverageEl.textContent=lowestAverage===null?'—':formatPower(lowestAverage);}
+function stopMeasurementTimer(){if(measurementTimerId){clearInterval(measurementTimerId);measurementTimerId=null;}}
+function startMeasurementTimer(){stopMeasurementTimer();measurementTimerId=setInterval(updateTimerAndStats,250);updateTimerAndStats();}
 function clearDetectorState(){baseline=null;armed=true;peak=0;signalPeak=0;signalStart=0;signalRising=false;lastDetectedPulse=-Infinity;}
-function startMeasurement(){stopAverageAssessment();measurementTitle.innerHTML='Measuring<span class="assessment-dots">...</span>';pulseTimes=[];recentIntervals=[];powerHistory=[];measurementStartTime=performance.now();firstPulseTime=0;measurementPulseCount=0;values=[];flashCount=0;lastFlash=0;clearDetectorState();countEl.textContent='0';lastEl.textContent='—';measurementRunning=true;setLivePower(null,null);setInstantWaiting('Waiting for 2 red pulses');setAssessmentText('Assessing');updateAverageAssessment();averageAssessmentTimer=setInterval(updateAverageAssessment,1000);startMeasurementButton.disabled=true;stopMeasurementButton.disabled=false;updatePowerDisplay();drawGraph();detectionQuality.textContent='Detection: watching';powerDetail.textContent=`Measuring • ${meterConstant} impulses/kWh`;}
-function stopMeasurement(){stopAverageAssessment();measurementRunning=false;measurementTitle.textContent='Press Start to begin measuring';measurementTitle.textContent='Press Start to begin measuring';startMeasurementButton.disabled=false;stopMeasurementButton.disabled=true;if(recentIntervals.length){updatePowerDisplay();powerDetail.textContent+=` • ${flashCount} pulses detected • Measurement stopped`;}else{powerDisplay.textContent='Power: —';powerDetail.textContent=flashCount?`${flashCount} pulse detected • Need at least two pulses.`:'No pulses detected.';}}
-function resetMeasurement(){stopAverageAssessment();measurementRunning=false;measurementTitle.textContent='Press Start to begin measuring';measurementTitle.textContent='Press Start to begin measuring';pulseTimes=[];recentIntervals=[];powerHistory=[];measurementStartTime=0;firstPulseTime=0;measurementPulseCount=0;values=[];flashCount=0;lastFlash=0;clearDetectorState();countEl.textContent='0';lastEl.textContent='—';startMeasurementButton.disabled=false;stopMeasurementButton.disabled=true;setLivePower(null,null);powerDisplay.textContent='Power: —';powerDetail.textContent='Ready to measure.';detectionQuality.textContent='Detection: waiting for signal';drawGraph();}
-startMeasurementButton.addEventListener('click',startMeasurement);stopMeasurementButton.addEventListener('click',stopMeasurement);resetMeasurementButton.addEventListener('click',resetMeasurement);
-function registerPulseForPower(){
-  if(!measurementRunning)return;
-  const now=performance.now();
-  measurementPulseCount++;
-  if(firstPulseTime===0)firstPulseTime=now;
-  let interval=null;
-  if(pulseTimes.length){
-    interval=(now-pulseTimes[pulseTimes.length-1])/1000;
-    if(interval>0.05&&interval<3600){
-      recentIntervals.push(interval);
-      if(recentIntervals.length>5)recentIntervals.shift();
-      const instantWatts=POWER_FACTOR_SECONDS/(interval*meterConstant);
-      const elapsedMs=now-firstPulseTime;
-      const completeIntervals=measurementPulseCount-1;
-      const averageWatts=completeIntervals>0&&elapsedMs>0
-        ?(completeIntervals*POWER_FACTOR_MILLISECONDS)/(elapsedMs*meterConstant)
-        :null;
-      powerHistory.push({time:Date.now(),watts:instantWatts});
-      const cutoff=Date.now()-5*60*1000;
-      powerHistory=powerHistory.filter(p=>p.time>=cutoff);
-      stopAverageAssessment();
-      setLivePower(instantWatts,averageWatts);
-    }
-  }
-  pulseTimes.push(now);
-  if(measurementPulseCount===1)setInstantWaiting('Waiting for one more red pulse');
-  if(pulseTimes.length>20)pulseTimes.shift();
-  updatePowerDisplay();
-  drawGraph();
+function stopAverageAssessment(){}
+function startMeasurement(){
+  const numeric=Number(meterConstantInput.value);
+  if(!Number.isFinite(numeric)||numeric<=0){meterConstantError.textContent='Enter the Pulse constant before starting the measurement.';meterConstantInput.focus();return;}
+  meterConstant=numeric;localStorage.setItem(METER_CONSTANT_KEY,String(numeric));meterConstantError.textContent='';
+  if(measurementPaused){measurementPaused=false;measurementRunning=true;measurementStartTime=performance.now();clearDetectorState();measurementTitle.innerHTML='Measuring<span class="assessment-dots">...</span>';startMeasurementButton.disabled=true;stopMeasurementButton.disabled=false;startMeasurementTimer();powerDetail.textContent='Measurement resumed • '+meterConstant+' impulses/kWh';return;}
+  measurementRunning=true;measurementPaused=false;measurementTitle.innerHTML='Measuring<span class="assessment-dots">...</span>';pulseTimes=[];recentIntervals=[];powerHistory=[];measurementStartTime=performance.now();firstPulseTime=0;measurementPulseCount=0;activeElapsedMs=0;lastPulseTime=0;lastPauseTime=0;peakInstant=null;lowestInstant=null;peakAverage=null;lowestAverage=null;values=[];flashCount=0;lastFlash=0;clearDetectorState();setLivePower(null,null);setInstantWaiting('Waiting for 2 red pulses');setAssessmentText('Assessing');startMeasurementButton.disabled=true;stopMeasurementButton.disabled=false;startMeasurementTimer();updateStatsReadings(null,null);drawGraph();detectionQuality.textContent='Detection: watching';powerDetail.textContent='Measuring • '+meterConstant+' impulses/kWh';
 }
-function updatePowerDisplay(){
-  if(measurementPulseCount===0){
-    powerDisplay.textContent='Power: —';
-    if(measurementRunning)setInstantWaiting('Waiting for 2 red pulses');else instantPowerEl.textContent='-';
-    if(!measurementRunning)averagePowerEl.textContent='-';
-    powerDetail.textContent=measurementRunning?'Waiting for first red pulse • '+meterConstant+' impulses/kWh':'Ready to measure.';
-    return;
-  }
-  if(!recentIntervals.length){
-    powerDisplay.textContent='Average power: —';
-    powerDetail.textContent='First red pulse captured • Waiting for a second red pulse • '+meterConstant+' impulses/kWh';
-    return;
-  }
-  const latestInterval=recentIntervals[recentIntervals.length-1];
-  const elapsedMs=performance.now()-firstPulseTime;
-  const completeIntervals=measurementPulseCount-1;
-  const averageWatts=completeIntervals>0&&elapsedMs>0
-    ?(completeIntervals*POWER_FACTOR_MILLISECONDS)/(elapsedMs*meterConstant)
-    :null;
-  const instantWatts=POWER_FACTOR_SECONDS/(latestInterval*meterConstant);
-  setLivePower(instantWatts,averageWatts);
-  powerDisplay.textContent='Average power: '+formatPower(averageWatts);
-  powerDetail.textContent='Based on '+completeIntervals+' complete pulse interval'+(completeIntervals===1?'':'s')+' since first pulse • Elapsed: '+(elapsedMs/1000).toFixed(1)+' s • '+meterConstant+' impulses/kWh';
-}selectInitialMeterPreset();
+function pauseMeasurement(){if(!measurementRunning)return;activeElapsedMs=getActiveElapsedMs();measurementRunning=false;measurementPaused=true;lastPauseTime=performance.now();stopMeasurementTimer();measurementTitle.textContent='Measurement paused';startMeasurementButton.disabled=false;stopMeasurementButton.disabled=true;powerDetail.textContent='Measurement paused • Press Start to resume';updateTimerAndStats();}
+function resetMeasurement(){stopMeasurementTimer();measurementRunning=false;measurementPaused=false;measurementTitle.textContent='Set Pulse constant and press Start to begin measuring';pulseTimes=[];recentIntervals=[];powerHistory=[];measurementStartTime=0;firstPulseTime=0;measurementPulseCount=0;activeElapsedMs=0;lastPulseTime=0;lastPauseTime=0;peakInstant=null;lowestInstant=null;peakAverage=null;lowestAverage=null;values=[];flashCount=0;lastFlash=0;clearDetectorState();pulseCountEl.textContent='0';averagePulseIntervalEl.textContent='—';timeSinceLastPulseEl.textContent='—';updateStatsReadings(null,null);setLivePower(null,null);measurementTimer.textContent='00:00:00';powerDetail.textContent=Number(meterConstantInput.value)>0?'Ready to measure.':'Set a Pulse constant before starting.';detectionQuality.textContent='Detection: waiting for signal';startMeasurementButton.disabled=false;stopMeasurementButton.disabled=true;drawGraph();}
+startMeasurementButton.addEventListener('click',startMeasurement);stopMeasurementButton.addEventListener('click',pauseMeasurement);resetMeasurementButton.addEventListener('click',resetMeasurement);
+function registerPulseForPower(){
+  if(!measurementRunning||!Number.isFinite(meterConstant)||meterConstant<=0)return;
+  const now=performance.now();
+  const interval=lastPulseTime?(now-lastPulseTime)/1000:null;
+  if(interval!==null&&interval>0.05&&interval<3600){
+    recentIntervals.push(interval);
+    const instantWatts=POWER_FACTOR_SECONDS/(interval*meterConstant);
+    measurementPulseCount++;
+    if(firstPulseTime===0)firstPulseTime=lastPulseTime;
+    const elapsedMs=now-firstPulseTime;
+    const averageWatts=(measurementPulseCount*POWER_FACTOR_MILLISECONDS)/(elapsedMs*meterConstant);
+    powerHistory.push({time:getActiveElapsedMs(now),watts:instantWatts});
+    const cutoff=Math.max(0,getActiveElapsedMs(now)-5*60*1000);
+    powerHistory=powerHistory.filter(p=>p.time>=cutoff);
+    setLivePower(instantWatts,averageWatts);updateStatsReadings(instantWatts,averageWatts);stopAverageAssessment();
+  }else if(!lastPulseTime){setInstantWaiting('Waiting for one more red pulse');}
+  lastPulseTime=now;updateTimerAndStats();updatePowerDisplay();drawGraph();
+}
+function updatePowerDisplay(){if(!measurementPulseCount||!recentIntervals.length)return;const latestInterval=recentIntervals[recentIntervals.length-1],elapsedMs=performance.now()-firstPulseTime,averageWatts=(measurementPulseCount*POWER_FACTOR_MILLISECONDS)/(elapsedMs*meterConstant),instantWatts=POWER_FACTOR_SECONDS/(latestInterval*meterConstant);setLivePower(instantWatts,averageWatts);updateStatsReadings(instantWatts,averageWatts);}
 const torchOverlay=document.getElementById('torchOverlay');
 const video=document.getElementById('camera'),canvas=document.getElementById('analysis'),ctx=canvas.getContext('2d',{willReadFrequently:true}),graph=document.getElementById('graph'),g=graph.getContext('2d'),startBtn=document.getElementById('start'),statusEl=document.getElementById('status'),countEl=document.getElementById('count'),lastEl=document.getElementById('last');
 let stream=null,track=null,torchOn=false,values=[],flashCount=0,lastFlash=0,baseline=null,armed=true,peak=0,lastFrame=0,lastGraphDraw=0,signalPeak=0,signalStart=0,signalRising=false,lastDetectedPulse=-Infinity;
@@ -269,7 +257,8 @@ function analyze(){
   if(n<10||clustered<7)return 0;
   return clustered/n<0.45?0:score/n;
 }
-function drawGraph(){const w=graph.width,h=graph.height,left=48,right=8,top=12,bottom=24,plotW=w-left-right,plotH=h-top-bottom;g.clearRect(0,0,w,h);g.font='11px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';g.textAlign='right';g.textBaseline='middle';if(powerHistory.length){const watts=powerHistory.map(p=>p.watts),maxData=Math.max(...watts),minData=Math.min(...watts),range=Math.max(100,maxData-minData),pad=range*.12,max=Math.max(100,maxData+pad),min=Math.max(0,minData-pad),latest=powerHistory[powerHistory.length-1].time,earliest=Math.min(...powerHistory.map(p=>p.time)),span=Math.max(1000,latest-earliest);for(let i=0;i<=4;i++){const value=min+(max-min)*i/4,y=top+plotH-(i/4)*plotH;g.strokeStyle='#333';g.lineWidth=1;g.beginPath();g.moveTo(left,y);g.lineTo(w-right,y);g.stroke();g.fillStyle='#999';g.fillText(formatPower(value),left-7,y);}if(powerHistory.length>1){g.strokeStyle='#ff3b30';g.lineWidth=2;g.beginPath();powerHistory.forEach((p,i)=>{const x=left+((p.time-earliest)/span)*(plotW-1),y=top+plotH-(p.watts-min)/(max-min)*plotH;if(i===0)g.moveTo(x,y);else g.lineTo(x,y);});g.stroke();}}else{g.fillStyle='#777';g.textAlign='center';g.fillText('Power history will appear after pulses are detected.',w/2,h/2);return;}g.fillStyle='#777';g.textAlign='center';g.textBaseline='alphabetic';g.fillText('Older',left+20,h-7);g.textAlign='right';g.fillText('Latest',w-right,h-7);}function detectFlash(v){
+function drawGraph(){const w=graph.width,h=graph.height,left=48,right=8,top=12,bottom=24,plotW=w-left-right,plotH=h-top-bottom;g.clearRect(0,0,w,h);g.font='11px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';g.textAlign='right';g.textBaseline='middle';if(powerHistory.length){const watts=powerHistory.map(p=>p.watts),maxData=Math.max(...watts),minData=Math.min(...watts),range=Math.max(100,maxData-minData),pad=range*.12,max=Math.max(100,maxData+pad),min=Math.max(0,minData-pad),span=Math.max(1000,powerHistory[powerHistory.length-1].time),startTime=powerHistory[0].time;for(let i=0;i<=4;i++){const value=min+(max-min)*i/4,y=top+plotH-(i/4)*plotH;g.strokeStyle='#333';g.lineWidth=1;g.beginPath();g.moveTo(left,y);g.lineTo(w-right,y);g.stroke();g.fillStyle='#999';g.fillText(formatPower(value),left-7,y);}if(powerHistory.length>1){g.strokeStyle='#ff3b30';g.lineWidth=2;g.beginPath();powerHistory.forEach((p,i)=>{const x=left+((p.time-startTime)/span)*(plotW-1),y=top+plotH-(p.watts-min)/(max-min)*plotH;if(i===0)g.moveTo(x,y);else g.lineTo(x,y);});g.stroke();}}else{g.fillStyle='#777';g.textAlign='center';g.fillText('Power history will appear after pulses are detected.',w/2,h/2);return;}g.fillStyle='#777';g.textAlign='center';g.textBaseline='alphabetic';g.fillText(formatDuration(powerHistory[0].time),left,h-7);g.textAlign='right';g.fillText(formatDuration(powerHistory[powerHistory.length-1].time),w-right,h-7);}
+function detectFlash(v){
   if(!measurementRunning||document.hidden)return;
   const now=performance.now();
   if(baseline===null)baseline=v;
@@ -305,7 +294,7 @@ let processingStarted=false,videoFrameCallbackId=null;function processFrame(ts){
 startBtn.addEventListener('click',startCamera);torchOverlay.addEventListener('click',toggleTorch);helpButton.addEventListener('click',()=>tooltip.classList.toggle('open'));tooltipClose.addEventListener('click',()=>tooltip.classList.remove('open'));
 window.addEventListener('pagehide',()=>{processingStarted=false;if(stream){stream.getTracks().forEach(t=>t.stop());}stream=null;track=null;video.srcObject=null;torchOn=false;torchOverlay.disabled=true;torchOverlay.style.opacity='.35';startBtn.disabled=false;startBtn.textContent='Start camera';setStatus('Camera not started');document.getElementById('cameraInfo').textContent='Camera settings: —';});
 window.addEventListener('pageshow',()=>{if(!stream){startBtn.disabled=false;startBtn.textContent='Start camera';setStatus('Camera not started');}});
-document.addEventListener('visibilitychange',()=>{if(document.hidden){if(measurementRunning){resetMeasurement();powerDetail.textContent='Measurement reset because the page was backgrounded.';}detectionQuality.textContent='Detection: paused while page is hidden';}else if(stream){detectionQuality.textContent='Detection: ready';startProcessingLoop();}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){if(measurementRunning){pauseMeasurement();powerDetail.textContent='Measurement paused because the page was backgrounded.';}detectionQuality.textContent='Detection: paused while page is hidden';}else if(stream){detectionQuality.textContent='Detection: ready';startProcessingLoop();}});
 </script>
 </body>
 </html>
