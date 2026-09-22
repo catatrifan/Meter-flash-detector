@@ -66,3 +66,13 @@
 - Added calculation diagnostics showing latest interval, instantaneous power, average power, and meter constant.
 - Static review still cannot reproduce the reported runtime value or establish whether “1” is a calculation, input/timing, or rendering issue.
 - QA-018 remains QA VERIFYING pending browser/device testing.
+
+
+## 2026-09-23 — Independent QA re-review
+- Re-read the current QA protocol, current review, test plan, history, and latest `main` branch `index.html`.
+- Found **QA-019 BLOCKER**: the current `index.html` contains no JavaScript at all (0 `<script>` tags).
+- This prevents camera startup, pulse detection, measurement state, power calculation, reset, torch control, and lifecycle handlers from functioning.
+- Also observed duplicate `</body>`, malformed document ending, and duplicate CSS declarations.
+- This is a new regression more severe than the previously reported average-power issue.
+- QA made **no application-code changes** during this review; only QA documentation was updated.
+- Current verdict: **BLOCKED — NOT READY FOR CONTROLLED PHYSICAL TESTING.**
