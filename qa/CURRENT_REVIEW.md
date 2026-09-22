@@ -204,3 +204,49 @@ No physical iPhone/Safari + electricity-meter tests were available to this QA re
 The developer has made substantial improvements and the implementation is now suitable for controlled physical testing.
 
 It is not yet appropriate to claim accurate real-world power measurement. The highest-priority uncertainty is whether the revised red detector can reliably distinguish the meter LED from small bright red reflections while maintaining pulse detection under real camera exposure behavior.
+
+
+## Latest re-review — 2026-09-22
+
+### Previous findings status
+- **QA-001:** PARTIALLY FIXED — requestVideoFrameCallback remains, but actual iPhone/Safari cadence is unverified.
+- **QA-002:** PARTIALLY FIXED — minimum qualifying pixels increased to 8 and clustered pixels to 5, but a small coherent red object can still pass; physical false-positive testing is required.
+- **QA-003:** PARTIALLY FIXED — no explicit exposure normalization/change detection; still requires T09/T10.
+- **QA-004:** FIXED by static inspection — visibilitychange resets active measurement and pauses processing; device verification remains required.
+- **QA-005:** FIXED by static inspection — startup catch stops acquired tracks.
+- **QA-006:** FIXED by static inspection — analysis canvas is resized only when dimensions differ.
+- **QA-007:** PARTIALLY FIXED — UI is more explicit, but measurement stability is still not rigorously established.
+- **QA-008:** FIXED by static inspection — changing meter constant resets measurement state when needed.
+- **QA-009:** FIXED by static inspection — the power-history graph is now time-based over retained pulse history, although it is capped to five minutes and still has only relative Older/Latest labels.
+- **QA-010:** STILL OPEN — 8 qualifying pixels and 5 clustered pixels can still represent a very small red reflection/object.
+- **QA-011:** FIXED by static inspection — pagehide now stops tracks and clears the stream. Restart behavior after page lifecycle restoration needs device/browser verification.
+- **QA-012:** STILL OPEN — “high confidence” still means pulse-shape confidence, not measurement stability.
+- **QA-013:** FIXED — the label is now “AVERAGE POWER · SINCE START”, and the implementation computes a count/elapsed-time average rather than the prior median-of-five label mismatch.
+- **QA-014:** PARTIALLY FIXED — the UI now distinguishes “Provisional instant” from “Average power”, but average power can still be displayed after the first pulse and uses elapsed time from measurement start, including an incomplete first pulse interval.
+
+### New findings
+
+#### QA-015 — MEDIUM — Since-start average is biased by the incomplete first interval
+**Status:** OPEN  
+**Evidence:** STATIC REVIEW
+
+The average calculation uses pulse count divided by elapsed time since measurement start. The first detected pulse represents an energy increment whose full interval began before measurement started unless measurement starts exactly at a pulse boundary. Therefore the displayed “average power since start” includes an incomplete first pulse interval. Shortly after starting, this can materially distort the average.
+
+**Expected:** Either start the averaging window after the first pulse, or explicitly define and handle the incomplete first interval.
+
+**Verification:** Start measurement at several points within a known pulse cycle and compare the displayed average over a controlled interval.
+
+#### QA-016 — LOW — Page lifecycle restart is not fully wired for restoration
+**Status:** OPEN  
+**Evidence:** STATIC REVIEW
+
+pagehide sets processingStarted=false, stops the stream, and clears the video source, but it does not re-enable the Start camera button or provide a pageshow handler that restores the camera UI state. If the page is restored from a browser lifecycle cache, the UI can remain in a disabled “Camera running” state while no stream exists.
+
+**Expected:** On page restoration, camera state and controls should be synchronized or the page should force a clean restart state.
+
+**Verification:** T01/device lifecycle testing including navigation away and back.
+
+### Latest QA conclusion
+**READY FOR CONTROLLED PHYSICAL TESTING; NOT READY TO CLAIM REAL-WORLD MEASUREMENT ACCURACY.**
+
+The latest build resolves QA-009 statically and improves QA-002 and QA-011. The remaining major uncertainty is detector behavior with real meter LEDs, reflections, exposure changes, and actual camera cadence. QA-015 is a correctness issue in the new “Average power since Start” metric and should be addressed before treating that metric as a trustworthy average.
