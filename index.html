@@ -11,12 +11,44 @@
   #camera { width:100%; height:62vh; object-fit:cover; background:#111; }
   .overlay { position:absolute; inset:0; pointer-events:none; display:flex; align-items:center; justify-content:center; }
   .target { width:min(10.5vw,55px); height:min(10.5vw,55px); border:2px solid rgba(255,255,255,.85); border-radius:12px; box-shadow:0 0 0 9999px rgba(0,0,0,.18); }
-  .hint { position:absolute; top:14px; left:0; right:0; text-align:center; font-size:14px; text-shadow:0 1px 4px #000; }
+  .hint { position:absolute; top:14px; left:16px; right:16px; text-align:center; font-size:14px; line-height:1.3; text-shadow:0 1px 4px #000; display:flex; align-items:flex-start; justify-content:center; gap:7px; }
+  .help-button,.torch-overlay { pointer-events:auto; width:34px; height:34px; padding:0; border-radius:50%; background:rgba(0,0,0,.65); color:#fff; border:1px solid rgba(255,255,255,.35); display:grid; place-items:center; flex:0 0 auto; }
+  .help-button { font-size:17px; margin-top:-6px; }
+  .torch-overlay { position:absolute; top:56px; right:14px; }
+  .torch-overlay svg { width:19px; height:19px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .hint-text { max-width:calc(100% - 48px); }
+  .tooltip { position:absolute; top:52px; left:12px; right:12px; background:rgba(15,15,15,.96); border:1px solid rgba(255,255,255,.25); border-radius:14px; padding:12px; z-index:5; display:none; pointer-events:auto; box-shadow:0 8px 30px rgba(0,0,0,.45); }
+  .tooltip.open { display:block; }
+  .tooltip svg { width:100%; height:155px; display:block; }
+  .tooltip-close { position:absolute; top:6px; right:7px; width:28px; height:28px; padding:0; border-radius:50%; background:#333; color:#fff; font-size:18px; }
+  .tooltip-caption { font-size:12px; color:#ccc; text-align:center; margin-top:4px; }
+  .live-power { position:absolute; left:12px; right:12px; bottom:12px; display:block; pointer-events:none; }
+  .power-card { background:rgba(0,0,0,.72); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,.16); border-radius:14px; padding:12px; text-align:center; text-shadow:0 1px 3px #000; }
+  .measurement-title { color:#fff; font-size:13px; font-weight:700; margin-bottom:9px; }
+  .measurement-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .measurement-item { min-width:0; }
+  .measurement-item .label { color:#bbb; font-size:11px; letter-spacing:.04em; font-weight:700; }
+  .measurement-item .value { font-size:21px; line-height:1.2; margin-top:3px; font-weight:750; font-variant-numeric:tabular-nums; }
+  .measurement-item.average .value { font-size:19px; }
+  .measurement-actions.overlay-actions { position:absolute; left:12px; right:12px; bottom:12px; display:flex; gap:8px; pointer-events:auto; }
+  .measurement-actions.overlay-actions button { flex:1; min-width:0; padding:10px 8px; }
+  .measurement-actions { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+  .measurement-actions button { min-width:80px; }
+  .camera-controls { display:flex; gap:8px; margin-top:12px; }
+  .camera-controls button { flex:1; }
+  .status { font-size:22px; font-weight:700; }
+  .status.measurement-status { font-size:18px; text-align:center; }
+  .measurement-summary { padding:12px; background:#171717; border-radius:12px; }
+  .measurement-summary .value { font-size:24px; margin-top:4px; font-variant-numeric:tabular-nums; }
+  .settings { margin-top:0; padding:12px; border:1px solid #333; border-radius:10px; }
+  .power-display { margin-top:12px; font-size:28px; font-weight:700; }
+  .power-detail { margin-top:4px; font-size:12px; opacity:.7; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .card { background:#171717; border-radius:12px; padding:12px; }
+  #torch { display:none; }
   .live-power { position:absolute; left:12px; right:12px; bottom:12px; display:grid; gap:8px; pointer-events:none; }
   .power-card { background:rgba(0,0,0,.72); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,.16); border-radius:14px; padding:9px 12px; text-align:center; text-shadow:0 1px 3px #000; }
-  .power-card .label { color:#bbb; font-size:11px; letter-spacing:.06em; font-weight:700; }
-  .power-card .value { font-size:26px; line-height:1.15; margin-top:2px; font-weight:750; font-variant-numeric:tabular-nums; }
-  .power-card.average .value { font-size:23px; }
+
   .assessment-dots { display:inline-block; width:1.4em; text-align:left; animation:dotPulse 1.2s steps(4,end) infinite; }
   @keyframes dotPulse { 0%,100% { opacity:.25; } 50% { opacity:1; } }
   .panel { padding:18px 20px 28px; display:grid; gap:12px; }
@@ -45,11 +77,61 @@
 <body>
 <div style="position:relative">
   <video id="camera" autoplay playsinline muted></video>
-  <div class="overlay"><div class="target"></div><div class="hint">Place the meter's red LED inside the box</div><div class="live-power"><div class="power-card"><div class="label">INSTANT POWER</div><div class="value" id="instantPower">Ready to measure</div></div><div class="power-card average"><div class="label">AVERAGE POWER · SINCE START</div><div class="value" id="averagePower"><span class="assessment-dots">Assessing</span></div></div></div></div>
+  <div class="overlay">
+    <div class="target"></div>
+    <div class="hint">
+      <span class="hint-text">Place the target area at the center of the camera over your energy meter's flashing red LED</span>
+      <button id="helpButton" class="help-button" type="button" aria-label="Show targeting instructions">?</button>
+    </div>
+    <div id="tooltip" class="tooltip">
+      <button id="tooltipClose" class="tooltip-close" type="button" aria-label="Close">×</button>
+      <svg viewBox="0 0 500 155" role="img" aria-label="Schematic showing a phone camera targeting an energy meter's flashing red LED">
+        <rect x="35" y="25" width="180" height="105" rx="8" fill="#242424" stroke="#aaa"/>
+        <rect x="58" y="43" width="134" height="68" rx="4" fill="#111" stroke="#777"/>
+        <rect x="125" y="68" width="12" height="8" rx="2" fill="#ff3b30"/>
+        <circle cx="131" cy="72" r="12" fill="none" stroke="#ff3b30" stroke-width="2" stroke-dasharray="3 3"/>
+        <text x="125" y="122" fill="#ddd" font-size="12">Energy meter</text>
+        <path d="M335 18h82a10 10 0 0 1 10 10v99a10 10 0 0 1-10 10h-82a10 10 0 0 1-10-10V28a10 10 0 0 1 10-10z" fill="#222" stroke="#aaa"/>
+        <rect x="337" y="34" width="78" height="76" rx="3" fill="#111" stroke="#666"/>
+        <rect x="370" y="67" width="12" height="8" rx="2" fill="#ff3b30"/>
+        <rect x="363" y="60" width="26" height="22" rx="4" fill="none" stroke="#fff" stroke-width="2"/>
+        <path d="M204 72h115" stroke="#fff" stroke-width="2" stroke-dasharray="7 6"/>
+        <path d="M308 65l11 7-11 7" fill="none" stroke="#fff" stroke-width="2"/>
+        <text x="328" y="151" fill="#bbb" font-size="11">Center the target area over the flashing LED</text>
+      </svg>
+      <div class="tooltip-caption">The target box should be centered on the meter's flashing red LED.</div>
+    </div>
+    <button id="torchOverlay" class="torch-overlay" type="button" aria-label="Turn flashlight on">
+      <svg viewBox="0 0 24 24"><path d="M9 3h6l1 4-2 2v6l2 3H8l2-3V9L8 7z"/><path d="M10 21h4"/></svg>
+    </button>
+    <div class="live-power">
+      <div class="power-card">
+        <div class="measurement-title" id="measurementTitle">Press Start to begin measuring</div>
+        <div class="measurement-row">
+          <div class="measurement-item">
+            <div class="label">INSTANT POWER CONSUMPTION</div>
+            <div class="value" id="instantPower">-</div>
+          </div>
+          <div class="measurement-item average">
+            <div class="label">AVERAGE POWER (SINCE START)</div>
+            <div class="value" id="averagePower">-</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="measurement-actions overlay-actions">
+      <button id="startMeasurement" type="button">Start</button>
+      <button id="stopMeasurement" type="button" disabled>Stop</button>
+      <button id="resetMeasurement" type="button">Reset</button>
+    </div>
+  </div>
 </div>
 <div class="panel">
   <div class="status" id="status">Camera not started</div>
   <div class="small" id="cameraInfo">Camera settings: —</div>
+  <div class="camera-controls">
+    <button id="start" type="button">Start camera</button>
+  </div>
   <div class="settings">
     <label for="meterPreset">Meter constant</label>
     <select id="meterPreset">
@@ -64,11 +146,6 @@
     <div id="powerDisplay" class="power-display">Power: —</div>
     <div id="powerDetail" class="power-detail">Waiting for two pulses...</div>
     <div id="detectionQuality" class="power-detail">Detection: waiting for signal</div>
-    <div class="measurement-actions">
-      <button id="startMeasurement" type="button">Start</button>
-      <button id="stopMeasurement" type="button" disabled>Stop</button>
-      <button id="resetMeasurement" type="button">Reset</button>
-    </div>
   </div>
   <div class="grid">
     <div class="card"><div class="label">FLASHES</div><div class="value" id="count">0</div></div>
@@ -76,159 +153,8 @@
   </div>
   <div class="small">Measurement history</div>
   <canvas id="graph" width="600" height="180"></canvas>
-  <button id="start">Start camera</button>
-  <button id="torch" disabled>Turn flashlight on</button>
   <div class="small">Prototype only. The prototype requests up to 120 FPS (with 60 FPS minimum) and displays the actual camera settings provided by the browser. The graph shows instantaneous power over the last 5 minutes and analyzes every available video frame. No camera frames are uploaded or stored.</div>
 </div>
 <canvas id="analysis" width="120" height="120" hidden></canvas>
-<script>
-const METER_CONSTANT_KEY='meterConstant';
-let meterConstant=Number(localStorage.getItem(METER_CONSTANT_KEY))||1000;
-let measurementRunning=false,pulseTimes=[],recentIntervals=[],powerHistory=[],measurementStartTime=0,firstPulseTime=0,measurementPulseCount=0,averageAssessmentTimer=null;
-const meterPreset=document.getElementById('meterPreset'),customMeterRow=document.getElementById('customMeterRow'),meterConstantInput=document.getElementById('meterConstant'),saveMeterConstantButton=document.getElementById('saveMeterConstant'),powerDisplay=document.getElementById('powerDisplay'),powerDetail=document.getElementById('powerDetail'),startMeasurementButton=document.getElementById('startMeasurement'),stopMeasurementButton=document.getElementById('stopMeasurement'),resetMeasurementButton=document.getElementById('resetMeasurement'),detectionQuality=document.getElementById('detectionQuality');
-const presets=[1000,2000,3000,4000,5000];
-const instantPowerEl=document.getElementById('instantPower'),averagePowerEl=document.getElementById('averagePower');
-function formatPower(watts){if(!Number.isFinite(watts))return '—';return watts>=1000?((watts/1000).toFixed(2)+' kW'):(watts.toFixed(0)+' W');}
-function setAssessmentText(text){averagePowerEl.innerHTML=text+' <span class="assessment-dots">...</span>';}
-function setInstantWaiting(text){instantPowerEl.innerHTML=text+' <span class="assessment-dots">...</span>';}
-function setLivePower(instant,average){if(instant===null)instantPowerEl.textContent='Ready to measure';else if(!Number.isFinite(instant))instantPowerEl.textContent='—';else instantPowerEl.textContent=formatPower(instant);if(average===null)setAssessmentText('Assessing');else if(!Number.isFinite(average))averagePowerEl.textContent='—';else averagePowerEl.textContent=formatPower(average);}
-function stopAverageAssessment(){if(averageAssessmentTimer){clearInterval(averageAssessmentTimer);averageAssessmentTimer=null;}}
-function updateAverageAssessment(){if(!measurementRunning||recentIntervals.length)return;const elapsedMs=performance.now()-measurementStartTime;if(elapsedMs<3000){setAssessmentText('Assessing');return;}const elapsedSeconds=elapsedMs/1000;const upperBound=3600000/(elapsedSeconds*meterConstant);averagePowerEl.innerHTML='&lt;'+formatPower(upperBound)+' . Assessing <span class="assessment-dots">...</span>';}
-function selectInitialMeterPreset(){if(presets.includes(meterConstant)){meterPreset.value=String(meterConstant);customMeterRow.style.display='none';}else{meterPreset.value='custom';meterConstantInput.value=meterConstant;customMeterRow.style.display='flex';}}
-function setMeterConstant(value){const numeric=Number(value);if(!Number.isFinite(numeric)||numeric<=0){powerDetail.textContent='Enter a valid meter constant.';return false;}const changed=numeric!==meterConstant;meterConstant=numeric;localStorage.setItem(METER_CONSTANT_KEY,String(numeric));if(changed&&(measurementRunning||pulseTimes.length||recentIntervals.length)){resetMeasurement();powerDetail.textContent=`Meter constant changed to ${meterConstant} impulses/kWh • Measurement reset.`;}else updatePowerDisplay();return true;}
-meterPreset.addEventListener('change',()=>{if(meterPreset.value==='custom'){customMeterRow.style.display='flex';meterConstantInput.value=meterConstant;meterConstantInput.focus();}else{customMeterRow.style.display='none';setMeterConstant(Number(meterPreset.value));}});
-saveMeterConstantButton.addEventListener('click',()=>{if(setMeterConstant(meterConstantInput.value))powerDetail.textContent=`Using ${meterConstant} impulses/kWh`;});
-function clearDetectorState(){baseline=null;armed=true;peak=0;signalPeak=0;signalStart=0;signalRising=false;lastDetectedPulse=-Infinity;}
-function startMeasurement(){stopAverageAssessment();pulseTimes=[];recentIntervals=[];powerHistory=[];measurementStartTime=performance.now();firstPulseTime=0;measurementPulseCount=0;values=[];flashCount=0;lastFlash=0;clearDetectorState();countEl.textContent='0';lastEl.textContent='—';measurementRunning=true;setLivePower(null,null);setInstantWaiting('Waiting for 2 red pulses');startAverageAssessmentButton();startMeasurementButton.disabled=true;stopMeasurementButton.disabled=false;updatePowerDisplay();drawGraph();detectionQuality.textContent='Detection: watching';powerDetail.textContent=`Measuring • ${meterConstant} impulses/kWh`;}
-function stopMeasurement(){stopAverageAssessment();measurementRunning=false;startMeasurementButton.disabled=false;stopMeasurementButton.disabled=true;if(recentIntervals.length){updatePowerDisplay();powerDetail.textContent+=` • ${flashCount} pulses detected • Measurement stopped`;}else{powerDisplay.textContent='Power: —';powerDetail.textContent=flashCount?`${flashCount} pulse detected • Need at least two pulses.`:'No pulses detected.';}}
-function resetMeasurement(){stopAverageAssessment();measurementRunning=false;pulseTimes=[];recentIntervals=[];powerHistory=[];measurementStartTime=0;firstPulseTime=0;measurementPulseCount=0;values=[];flashCount=0;lastFlash=0;clearDetectorState();countEl.textContent='0';lastEl.textContent='—';startMeasurementButton.disabled=false;stopMeasurementButton.disabled=true;setLivePower(null,null);powerDisplay.textContent='Power: —';powerDetail.textContent='Ready to measure.';detectionQuality.textContent='Detection: waiting for signal';drawGraph();}
-startMeasurementButton.addEventListener('click',startMeasurement);stopMeasurementButton.addEventListener('click',stopMeasurement);resetMeasurementButton.addEventListener('click',resetMeasurement);
-function startAverageAssessmentButton(){updateAverageAssessment();averageAssessmentTimer=setInterval(updateAverageAssessment,1000);}
-function registerPulseForPower(){
-  if(!measurementRunning)return;
-  const now=performance.now();
-  measurementPulseCount++;
-  if(firstPulseTime===0)firstPulseTime=now;
-  let interval=null;
-  if(pulseTimes.length){
-    interval=(now-pulseTimes[pulseTimes.length-1])/1000;
-    if(interval>0.05&&interval<3600){
-      recentIntervals.push(interval);
-      if(recentIntervals.length>5)recentIntervals.shift();
-      const instantWatts=3600000/(interval*meterConstant);
-      const elapsedMs=now-firstPulseTime;
-      const completeIntervals=measurementPulseCount-1;
-      const averageWatts=completeIntervals>0&&elapsedMs>0
-        ?(completeIntervals*3600000000)/(elapsedMs*meterConstant)
-        :null;
-      powerHistory.push({time:Date.now(),watts:instantWatts});
-      const cutoff=Date.now()-5*60*1000;
-      powerHistory=powerHistory.filter(p=>p.time>=cutoff);
-      stopAverageAssessment();
-      setLivePower(instantWatts,averageWatts);
-    }
-  }
-  pulseTimes.push(now);
-  if(pulseTimes.length>20)pulseTimes.shift();
-  if(measurementPulseCount===1){setInstantWaiting('Waiting for one more LED pulse');}
-  updatePowerDisplay();
-  drawGraph();
-}
-function updatePowerDisplay(){
-  if(measurementPulseCount===0){
-    powerDisplay.textContent='Power: —';
-    if(measurementRunning)setInstantWaiting('Waiting for 2 red pulses');else instantPowerEl.textContent='Ready to measure';
-    powerDetail.textContent=measurementRunning?'Waiting for first red pulse • '+meterConstant+' impulses/kWh':'Ready to measure.';
-    return;
-  }
-  if(!recentIntervals.length){
-    powerDisplay.textContent='Average power: —';
-    powerDetail.textContent='First red pulse captured • Waiting for a second red pulse • '+meterConstant+' impulses/kWh';
-    return;
-  }
-  const latestInterval=recentIntervals[recentIntervals.length-1];
-  const elapsedMs=performance.now()-firstPulseTime;
-  const completeIntervals=measurementPulseCount-1;
-  const averageWatts=completeIntervals>0&&elapsedMs>0
-    ?(completeIntervals*3600000000)/(elapsedMs*meterConstant)
-    :null;
-  const instantWatts=3600000/(latestInterval*meterConstant);
-  stopAverageAssessment();
-  setLivePower(instantWatts,averageWatts);
-  powerDisplay.textContent='Average power: '+formatPower(averageWatts);
-  powerDetail.textContent='Based on '+completeIntervals+' complete pulse interval'+(completeIntervals===1?'':'s')+' since first pulse • Elapsed: '+(elapsedMs/1000).toFixed(1)+' s • '+meterConstant+' impulses/kWh';
-}selectInitialMeterPreset();
-const video=document.getElementById('camera'),canvas=document.getElementById('analysis'),ctx=canvas.getContext('2d',{willReadFrequently:true}),graph=document.getElementById('graph'),g=graph.getContext('2d'),startBtn=document.getElementById('start'),torchBtn=document.getElementById('torch'),statusEl=document.getElementById('status'),countEl=document.getElementById('count'),lastEl=document.getElementById('last');
-let stream=null,track=null,torchOn=false,values=[],flashCount=0,lastFlash=0,baseline=null,armed=true,peak=0,lastFrame=0,lastGraphDraw=0,signalPeak=0,signalStart=0,signalRising=false,lastDetectedPulse=-Infinity;
-function setStatus(s,flash=false){statusEl.textContent=s;statusEl.id=flash?'flash':'status';}
-async function startCamera(){try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720},frameRate:{ideal:120,min:60}},audio:false});track=stream.getVideoTracks()[0];video.srcObject=stream;await video.play();const settings=track.getSettings?track.getSettings():{},fps=settings.frameRate?settings.frameRate.toFixed(1):'unknown',resolution=settings.width&&settings.height?`${settings.width} × ${settings.height}`:'unknown';document.getElementById('cameraInfo').textContent=`Camera settings: ${resolution} • ${fps} FPS`;const caps=track.getCapabilities?track.getCapabilities():{};if(caps.torch)torchBtn.disabled=false;startBtn.disabled=true;startBtn.textContent='Camera running';setStatus('Position the LED inside the box');startProcessingLoop();}catch(e){if(stream){stream.getTracks().forEach(t=>t.stop());}stream=null;track=null;video.srcObject=null;setStatus('Camera access failed: '+e.message);}}
-async function toggleTorch(){if(!track)return;const caps=track.getCapabilities?track.getCapabilities():{};if(!caps.torch){setStatus('This browser/device does not expose flashlight control');return;}torchOn=!torchOn;try{await track.applyConstraints({advanced:[{torch:torchOn}]});torchBtn.textContent=torchOn?'Turn flashlight off':'Turn flashlight on';}catch(e){setStatus('Could not change flashlight');}}
-function analyze(){
-  const vw=video.videoWidth,vh=video.videoHeight;
-  if(!vw||!vh)return null;
-  const size=Math.min(vw,vh)*0.06,sx=(vw-size)/2,sy=(vh-size)/2;
-  if(canvas.width!==120||canvas.height!==120){canvas.width=120;canvas.height=120;}
-  ctx.drawImage(video,sx,sy,size,size,0,0,120,120);
-  const data=ctx.getImageData(0,0,120,120).data;
-  let score=0,n=0,clustered=0;
-  for(let y=1;y<119;y++){
-    for(let x=1;x<119;x++){
-      const i=(y*120+x)*4,r=data[i],gr=data[i+1],b=data[i+2];
-      const redExcess=r-Math.max(gr,b);
-      const redRatio=r/Math.max(1,gr+b);
-      if(redExcess>=28&&r>=55&&redRatio>=0.52){
-        score+=redExcess;n++;
-        let neighbors=0;
-        for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(dx||dy){
-          const j=((y+dy)*120+(x+dx))*4,rr=data[j],gg=data[j+1],bb=data[j+2];
-          const neighborExcess=rr-Math.max(gg,bb);
-          const neighborRatio=rr/Math.max(1,gg+bb);
-          if(neighborExcess>=28&&rr>=55&&neighborRatio>=0.52)neighbors++;
-        }
-        if(neighbors>=2)clustered++;
-      }
-    }
-  }
-  if(n<10||clustered<7)return 0;
-  return clustered/n<0.45?0:score/n;
-}
-function drawGraph(){const w=graph.width,h=graph.height,left=48,right=8,top=12,bottom=24,plotW=w-left-right,plotH=h-top-bottom;g.clearRect(0,0,w,h);g.font='11px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';g.textAlign='right';g.textBaseline='middle';if(powerHistory.length){const watts=powerHistory.map(p=>p.watts),maxData=Math.max(...watts),minData=Math.min(...watts),range=Math.max(100,maxData-minData),pad=range*.12,max=Math.max(100,maxData+pad),min=Math.max(0,minData-pad),latest=powerHistory[powerHistory.length-1].time,earliest=Math.min(...powerHistory.map(p=>p.time)),span=Math.max(1000,latest-earliest);for(let i=0;i<=4;i++){const value=min+(max-min)*i/4,y=top+plotH-(i/4)*plotH;g.strokeStyle='#333';g.lineWidth=1;g.beginPath();g.moveTo(left,y);g.lineTo(w-right,y);g.stroke();g.fillStyle='#999';g.fillText(formatPower(value),left-7,y);}if(powerHistory.length>1){g.strokeStyle='#ff3b30';g.lineWidth=2;g.beginPath();powerHistory.forEach((p,i)=>{const x=left+((p.time-earliest)/span)*(plotW-1),y=top+plotH-(p.watts-min)/(max-min)*plotH;if(i===0)g.moveTo(x,y);else g.lineTo(x,y);});g.stroke();}}else{g.fillStyle='#777';g.textAlign='center';g.fillText('Power history will appear after pulses are detected.',w/2,h/2);return;}g.fillStyle='#777';g.textAlign='center';g.textBaseline='alphabetic';g.fillText('Older',left+20,h-7);g.textAlign='right';g.fillText('Latest',w-right,h-7);}function detectFlash(v){
-  if(!measurementRunning||document.hidden)return;
-  const now=performance.now();
-  if(baseline===null)baseline=v;
-  const delta=v-baseline,threshold=Math.max(35,baseline*0.9);
-  if(armed&&!signalRising&&delta>threshold){
-    signalRising=true;signalStart=now;signalPeak=v;
-    detectionQuality.textContent='Detection: possible red pulse';
-  }
-  if(signalRising){
-    if(v>signalPeak)signalPeak=v;
-    const peakDelta=signalPeak-baseline,duration=now-signalStart,hasFallen=v<baseline+peakDelta*0.45;
-    if(hasFallen&&duration>=12&&duration<=1000){
-      if(now-lastDetectedPulse>=80&&peakDelta>threshold){
-        flashCount++;registerPulseForPower();countEl.textContent=flashCount;lastEl.textContent=new Date().toLocaleTimeString();
-        setStatus('FLASH DETECTED',true);lastFlash=now;lastDetectedPulse=now;armed=false;
-        detectionQuality.textContent='Detection: red pulse accepted';
-      }else detectionQuality.textContent='Detection: rejected noise';
-      signalRising=false;signalPeak=0;signalStart=0;
-    }else if(duration>1000){
-      signalRising=false;signalPeak=0;signalStart=0;armed=true;baseline=v;
-      detectionQuality.textContent='Detection: signal stabilized';
-    }else detectionQuality.textContent='Detection: red pulse shape detected';
-  }
-  if(!signalRising&&armed){
-    if(Math.abs(delta)<threshold*0.5)baseline=baseline*0.97+v*0.03;
-    detectionQuality.textContent='Detection: watching';
-  }
-  if(!armed&&!signalRising&&v<baseline+8){
-    armed=true;signalPeak=0;detectionQuality.textContent='Detection: watching';setStatus('Watching for next flash');
-  }
-}
-let processingStarted=false,videoFrameCallbackId=null;function processFrame(ts){if(!stream||document.hidden)return;const v=analyze();if(v!==null){values.push(v);if(values.length>5000)values.shift();detectFlash(v);if(ts-lastGraphDraw>=100){lastGraphDraw=ts;drawGraph();}}}function startProcessingLoop(){if(processingStarted)return;processingStarted=true;if(typeof video.requestVideoFrameCallback==='function'){const onVideoFrame=(now)=>{if(!processingStarted||!stream)return;if(!document.hidden)processFrame(now);videoFrameCallbackId=video.requestVideoFrameCallback(onVideoFrame);};videoFrameCallbackId=video.requestVideoFrameCallback(onVideoFrame);}else{const onAnimationFrame=(ts)=>{if(!processingStarted||!stream)return;if(!document.hidden)processFrame(ts);requestAnimationFrame(onAnimationFrame);};requestAnimationFrame(onAnimationFrame);}}
-startBtn.addEventListener('click',startCamera);torchBtn.addEventListener('click',toggleTorch);
-window.addEventListener('pagehide',()=>{processingStarted=false;if(stream){stream.getTracks().forEach(t=>t.stop());}stream=null;track=null;video.srcObject=null;torchOn=false;torchBtn.disabled=true;startBtn.disabled=false;startBtn.textContent='Start camera';setStatus('Camera not started');document.getElementById('cameraInfo').textContent='Camera settings: —';});
-window.addEventListener('pageshow',()=>{if(!stream){startBtn.disabled=false;startBtn.textContent='Start camera';setStatus('Camera not started');}});
-document.addEventListener('visibilitychange',()=>{if(document.hidden){if(measurementRunning){resetMeasurement();powerDetail.textContent='Measurement reset because the page was backgrounded.';}detectionQuality.textContent='Detection: paused while page is hidden';}else if(stream){setStatus('Position the LED inside the box');detectionQuality.textContent='Detection: ready';startProcessingLoop();}});
-</script>
-</body>
+</body></body>
 </html>
