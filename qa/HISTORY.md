@@ -35,3 +35,10 @@
 - Added QA-015: since-start average is biased by the incomplete first pulse interval.
 - Added QA-016: page lifecycle restoration can leave camera controls inconsistent after pagehide/bfcache restoration.
 - No physical iPhone/meter testing was performed.
+
+
+## 2026-09-22 — User-reported UI regression re-review
+- Inspected the current main-branch `index.html` after the user reported three issues: camera cannot start, power readers overlap the target, and literal escaped-newline text appears below Measurement history.
+- Added QA-017 (BLOCKER): literal `\\n` sequences are present in HTML/CSS/JavaScript. The JavaScript occurrences make the script syntactically invalid, explaining the camera-start failure; the same malformed escaping explains the overlay styling failure and visible escaped-newline text.
+- These issues were not identified in the previous static review.
+- No physical iPhone/meter test was performed.
