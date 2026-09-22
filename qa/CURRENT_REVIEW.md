@@ -341,3 +341,11 @@ The implementation also increments `measurementPulseCount` before validating the
 **Expected:** Define the average window in terms of valid complete pulse intervals and update the displayed average consistently from that valid state. At minimum, the UI should explicitly show that it is waiting for the next valid pulse rather than appearing broken; ideally the average should be recomputed periodically from the first valid pulse through the current time when that definition is appropriate.
 
 **Verification:** On a known stable load, start measurement between pulses and observe the average card before the first pulse, after the first pulse, after the second pulse, and while waiting for the third. Test a case where an interval is rejected as invalid.
+
+
+### QA-018 follow-up — 2026-09-22
+- Re-checked the current power path after the user-reported “average power shows 1” symptom.
+- Commit `bec86cda2bf20d8e4f9bfd56fdee8cb25eb61216` changes interval accounting so only **valid** pulse intervals contribute to the complete-interval count.
+- Commit `83d299fd6bf7352e5d109e852136f65fe91245f2` adds explicit diagnostics to the power-detail line: latest interval, instant power, average power, and meter constant.
+- Static review does **not** prove why the deployed UI showed “1”; the next physical/runtime test must compare the displayed value with the displayed interval and meter constant.
+- QA-018 remains **QA VERIFYING** pending browser/device reproduction.
