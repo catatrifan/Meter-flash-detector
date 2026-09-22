@@ -30,8 +30,8 @@
   .measurement-item .label { color:#bbb; font-size:11px; letter-spacing:.04em; font-weight:700; }
   .measurement-item .value { font-size:21px; line-height:1.2; margin-top:3px; font-weight:750; font-variant-numeric:tabular-nums; }
   .measurement-item.average .value { font-size:19px; }
-  .measurement-actions.overlay-actions { position:absolute; left:12px; right:12px; bottom:12px; display:flex; gap:8px; pointer-events:auto; }
-  .measurement-actions.overlay-actions button { flex:1; min-width:0; padding:10px 8px; }
+  .camera-measurement-actions { margin:10px 12px 0; }
+  .camera-measurement-actions button { flex:1; }
   .measurement-actions { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
   .measurement-actions button { min-width:80px; }
   .camera-controls { display:flex; gap:8px; margin-top:12px; }
@@ -119,11 +119,8 @@
         </div>
       </div>
     </div>
-    <div class="measurement-actions overlay-actions">
-      <button id="startMeasurement" type="button">Start</button>
-      <button id="stopMeasurement" type="button" disabled>Stop</button>
-      <button id="resetMeasurement" type="button">Reset</button>
     </div>
+<div class="measurement-actions camera-measurement-actions"><button id="startMeasurement" type="button">Start</button><button id="stopMeasurement" type="button" disabled>Stop</button><button id="resetMeasurement" type="button">Reset</button></div>
   </div>
 </div>
 <div class="panel">
