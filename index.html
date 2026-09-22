@@ -17,7 +17,7 @@
   .power-card .label { color:#bbb; font-size:11px; letter-spacing:.06em; font-weight:700; }
   .power-card .value { font-size:26px; line-height:1.15; margin-top:2px; font-weight:750; font-variant-numeric:tabular-nums; }
   .power-card.average .value { font-size:23px; }
-  .assessment-dots::after { content:'...'; display:inline-block; width:1.4em; text-align:left; animation:dotPulse 1.2s steps(4,end) infinite; }
+  .assessment-dots { display:inline-block; width:1.4em; text-align:left; animation:dotPulse 1.2s steps(4,end) infinite; }
   @keyframes dotPulse { 0%,100% { opacity:.25; } 50% { opacity:1; } }
   .panel { padding:18px 20px 28px; display:grid; gap:12px; }
   .status { font-size:22px; font-weight:700; }
@@ -89,16 +89,17 @@ const meterPreset=document.getElementById('meterPreset'),customMeterRow=document
 const presets=[1000,2000,3000,4000,5000];
 const instantPowerEl=document.getElementById('instantPower'),averagePowerEl=document.getElementById('averagePower');
 function formatPower(watts){if(!Number.isFinite(watts))return '—';return watts>=1000?((watts/1000).toFixed(2)+' kW'):(watts.toFixed(0)+' W');}
-function setAssessmentText(text){averagePowerEl.innerHTML='<span class="assessment-dots">'+text+'</span>';}
+function setAssessmentText(text){averagePowerEl.innerHTML=text+' <span class="assessment-dots">...</span>';}
+function setInstantWaiting(text){instantPowerEl.innerHTML=text+' <span class="assessment-dots">...</span>';}
 function setLivePower(instant,average){if(instant===null)instantPowerEl.textContent='Ready to measure';else if(!Number.isFinite(instant))instantPowerEl.textContent='—';else instantPowerEl.textContent=formatPower(instant);if(average===null)setAssessmentText('Assessing');else if(!Number.isFinite(average))averagePowerEl.textContent='—';else averagePowerEl.textContent=formatPower(average);}
 function stopAverageAssessment(){if(averageAssessmentTimer){clearInterval(averageAssessmentTimer);averageAssessmentTimer=null;}}
-function updateAverageAssessment(){if(!measurementRunning||recentIntervals.length)return;const elapsedMs=performance.now()-measurementStartTime;if(elapsedMs<3000){setAssessmentText('Assessing');return;}const elapsedSeconds=elapsedMs/1000;const upperBound=3600000/(elapsedSeconds*meterConstant);averagePowerEl.innerHTML='<span class="assessment-dots">&lt;'+formatPower(upperBound).replace(' kW',' kW').replace(' W',' W')+' • Assessing</span>';}
+function updateAverageAssessment(){if(!measurementRunning||recentIntervals.length)return;const elapsedMs=performance.now()-measurementStartTime;if(elapsedMs<3000){setAssessmentText('Assessing');return;}const elapsedSeconds=elapsedMs/1000;const upperBound=3600000/(elapsedSeconds*meterConstant);averagePowerEl.innerHTML='&lt;'+formatPower(upperBound)+' . Assessing <span class="assessment-dots">...</span>';}
 function selectInitialMeterPreset(){if(presets.includes(meterConstant)){meterPreset.value=String(meterConstant);customMeterRow.style.display='none';}else{meterPreset.value='custom';meterConstantInput.value=meterConstant;customMeterRow.style.display='flex';}}
 function setMeterConstant(value){const numeric=Number(value);if(!Number.isFinite(numeric)||numeric<=0){powerDetail.textContent='Enter a valid meter constant.';return false;}const changed=numeric!==meterConstant;meterConstant=numeric;localStorage.setItem(METER_CONSTANT_KEY,String(numeric));if(changed&&(measurementRunning||pulseTimes.length||recentIntervals.length)){resetMeasurement();powerDetail.textContent=`Meter constant changed to ${meterConstant} impulses/kWh • Measurement reset.`;}else updatePowerDisplay();return true;}
 meterPreset.addEventListener('change',()=>{if(meterPreset.value==='custom'){customMeterRow.style.display='flex';meterConstantInput.value=meterConstant;meterConstantInput.focus();}else{customMeterRow.style.display='none';setMeterConstant(Number(meterPreset.value));}});
 saveMeterConstantButton.addEventListener('click',()=>{if(setMeterConstant(meterConstantInput.value))powerDetail.textContent=`Using ${meterConstant} impulses/kWh`;});
 function clearDetectorState(){baseline=null;armed=true;peak=0;signalPeak=0;signalStart=0;signalRising=false;lastDetectedPulse=-Infinity;}
-function startMeasurement(){stopAverageAssessment();pulseTimes=[];recentIntervals=[];powerHistory=[];measurementStartTime=performance.now();firstPulseTime=0;measurementPulseCount=0;values=[];flashCount=0;lastFlash=0;clearDetectorState();countEl.textContent='0';lastEl.textContent='—';measurementRunning=true;setLivePower(null,null);instantPowerEl.textContent='Waiting for 2 red pulses';startAverageAssessmentButton();startMeasurementButton.disabled=true;stopMeasurementButton.disabled=false;updatePowerDisplay();drawGraph();detectionQuality.textContent='Detection: watching';powerDetail.textContent=`Measuring • ${meterConstant} impulses/kWh`;}
+function startMeasurement(){stopAverageAssessment();pulseTimes=[];recentIntervals=[];powerHistory=[];measurementStartTime=performance.now();firstPulseTime=0;measurementPulseCount=0;values=[];flashCount=0;lastFlash=0;clearDetectorState();countEl.textContent='0';lastEl.textContent='—';measurementRunning=true;setLivePower(null,null);setInstantWaiting('Waiting for 2 red pulses');startAverageAssessmentButton();startMeasurementButton.disabled=true;stopMeasurementButton.disabled=false;updatePowerDisplay();drawGraph();detectionQuality.textContent='Detection: watching';powerDetail.textContent=`Measuring • ${meterConstant} impulses/kWh`;}
 function stopMeasurement(){stopAverageAssessment();measurementRunning=false;startMeasurementButton.disabled=false;stopMeasurementButton.disabled=true;if(recentIntervals.length){updatePowerDisplay();powerDetail.textContent+=` • ${flashCount} pulses detected • Measurement stopped`;}else{powerDisplay.textContent='Power: —';powerDetail.textContent=flashCount?`${flashCount} pulse detected • Need at least two pulses.`:'No pulses detected.';}}
 function resetMeasurement(){stopAverageAssessment();measurementRunning=false;pulseTimes=[];recentIntervals=[];powerHistory=[];measurementStartTime=0;firstPulseTime=0;measurementPulseCount=0;values=[];flashCount=0;lastFlash=0;clearDetectorState();countEl.textContent='0';lastEl.textContent='—';startMeasurementButton.disabled=false;stopMeasurementButton.disabled=true;setLivePower(null,null);powerDisplay.textContent='Power: —';powerDetail.textContent='Ready to measure.';detectionQuality.textContent='Detection: waiting for signal';drawGraph();}
 startMeasurementButton.addEventListener('click',startMeasurement);stopMeasurementButton.addEventListener('click',stopMeasurement);resetMeasurementButton.addEventListener('click',resetMeasurement);
@@ -129,14 +130,14 @@ function registerPulseForPower(){
   }
   pulseTimes.push(now);
   if(pulseTimes.length>20)pulseTimes.shift();
-  if(measurementPulseCount===1){instantPowerEl.innerHTML='<span class="assessment-dots">Waiting for one more LED pulse</span>';}
+  if(measurementPulseCount===1){setInstantWaiting('Waiting for one more LED pulse');}
   updatePowerDisplay();
   drawGraph();
 }
 function updatePowerDisplay(){
   if(measurementPulseCount===0){
     powerDisplay.textContent='Power: —';
-    if(measurementRunning)instantPowerEl.innerHTML='<span class="assessment-dots">Waiting for 2 red pulses</span>';else instantPowerEl.textContent='Ready to measure';
+    if(measurementRunning)setInstantWaiting('Waiting for 2 red pulses');else instantPowerEl.textContent='Ready to measure';
     powerDetail.textContent=measurementRunning?'Waiting for first red pulse • '+meterConstant+' impulses/kWh':'Ready to measure.';
     return;
   }
