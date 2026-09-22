@@ -76,7 +76,7 @@
   <canvas id="graph" width="600" height="180"></canvas>
   <button id="start">Start camera</button>
   <button id="torch" disabled>Turn flashlight on</button>
-  <div class="small">Prototype only. The prototype requests up to 120 FPS (with 60 FPS minimum) and displays the actual camera settings provided by the browser. The graph shows red intensity on the Y axis and analyzes every available frame. No camera frames are uploaded or stored.</div>
+  <div class="small">Prototype only. The prototype requests up to 120 FPS (with 60 FPS minimum) and displays the actual camera settings provided by the browser. The graph shows instantaneous power over the last 5 minutes and analyzes every available video frame. No camera frames are uploaded or stored.</div>
 </div>
 <canvas id="analysis" width="120" height="120" hidden></canvas>
 <script>
@@ -103,8 +103,67 @@ let stream=null,track=null,torchOn=false,values=[],flashCount=0,lastFlash=0,base
 function setStatus(s,flash=false){statusEl.textContent=s;statusEl.id=flash?'flash':'status';}
 async function startCamera(){try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720},frameRate:{ideal:120,min:60}},audio:false});track=stream.getVideoTracks()[0];video.srcObject=stream;await video.play();const settings=track.getSettings?track.getSettings():{},fps=settings.frameRate?settings.frameRate.toFixed(1):'unknown',resolution=settings.width&&settings.height?`${settings.width} × ${settings.height}`:'unknown';document.getElementById('cameraInfo').textContent=`Camera settings: ${resolution} • ${fps} FPS`;const caps=track.getCapabilities?track.getCapabilities():{};if(caps.torch)torchBtn.disabled=false;startBtn.disabled=true;startBtn.textContent='Camera running';setStatus('Position the LED inside the box');startProcessingLoop();}catch(e){if(stream){stream.getTracks().forEach(t=>t.stop());}stream=null;track=null;video.srcObject=null;setStatus('Camera access failed: '+e.message);}}
 async function toggleTorch(){if(!track)return;const caps=track.getCapabilities?track.getCapabilities():{};if(!caps.torch){setStatus('This browser/device does not expose flashlight control');return;}torchOn=!torchOn;try{await track.applyConstraints({advanced:[{torch:torchOn}]});torchBtn.textContent=torchOn?'Turn flashlight off':'Turn flashlight on';}catch(e){setStatus('Could not change flashlight');}}
-function analyze(){const vw=video.videoWidth,vh=video.videoHeight;if(!vw||!vh)return null;const size=Math.min(vw,vh)*0.06,sx=(vw-size)/2,sy=(vh-size)/2;if(canvas.width!==120||canvas.height!==120){canvas.width=120;canvas.height=120;}ctx.drawImage(video,sx,sy,size,size,0,0,120,120);const data=ctx.getImageData(0,0,120,120).data;let score=0,n=0,clustered=0;for(let y=1;y<119;y++){for(let x=1;x<119;x++){const i=(y*120+x)*4,r=data[i],gr=data[i+1],b=data[i+2],red=Math.max(0,r-Math.max(gr,b));if(red>15&&r>35){score+=red;n++;let neighbors=0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(dx||dy){const j=((y+dy)*120+(x+dx))*4,rr=data[j],gg=data[j+1],bb=data[j+2];if(Math.max(0,rr-Math.max(gg,bb))>15&&rr>35)neighbors++;}if(neighbors>=2)clustered++;}}}if(!n||n<8||clustered<5)return 0;const density=clustered/Math.max(1,n);return density<0.35?0:score/n;}
-function drawGraph(){const w=graph.width,h=graph.height,left=48,right=8,top=12,bottom=24,plotW=w-left-right,plotH=h-top-bottom;g.clearRect(0,0,w,h);g.font='11px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';g.textAlign='right';g.textBaseline='middle';if(powerHistory.length){const watts=powerHistory.map(p=>p.watts),maxData=Math.max(...watts),minData=Math.min(...watts),range=Math.max(100,maxData-minData),pad=range*.12,max=Math.max(100,maxData+pad),min=Math.max(0,minData-pad),latest=powerHistory[powerHistory.length-1].time,earliest=Math.min(...powerHistory.map(p=>p.time)),span=Math.max(1000,latest-earliest);for(let i=0;i<=4;i++){const value=min+(max-min)*i/4,y=top+plotH-(i/4)*plotH;g.strokeStyle='#333';g.lineWidth=1;g.beginPath();g.moveTo(left,y);g.lineTo(w-right,y);g.stroke();g.fillStyle='#999';g.fillText(formatPower(value),left-7,y);}if(powerHistory.length>1){g.strokeStyle='#ff3b30';g.lineWidth=2;g.beginPath();powerHistory.forEach((p,i)=>{const x=left+((p.time-earliest)/span)*(plotW-1),y=top+plotH-(p.watts-min)/(max-min)*plotH;if(i===0)g.moveTo(x,y);else g.lineTo(x,y);});g.stroke();}}else{g.fillStyle='#777';g.textAlign='center';g.fillText('Power history will appear after pulses are detected.',w/2,h/2);return;}g.fillStyle='#777';g.textAlign='center';g.textBaseline='alphabetic';g.fillText('Older',left+20,h-7);g.textAlign='right';g.fillText('Latest',w-right,h-7);}function detectFlash(v){if(!measurementRunning||document.hidden)return;const now=performance.now();if(baseline===null)baseline=v;const delta=v-baseline,threshold=Math.max(18,baseline*0.65);if(armed&&!signalRising&&delta>threshold){signalRising=true;signalStart=now;signalPeak=v;detectionQuality.textContent='Detection: possible pulse';}if(signalRising){if(v>signalPeak)signalPeak=v;const peakDelta=signalPeak-baseline,duration=now-signalStart,hasFallen=v<baseline+peakDelta*0.45;if(hasFallen&&duration>=8&&duration<=1000){if(now-lastDetectedPulse>=80&&peakDelta>threshold){flashCount++;registerPulseForPower();countEl.textContent=flashCount;lastEl.textContent=new Date().toLocaleTimeString();setStatus('FLASH DETECTED',true);lastFlash=now;lastDetectedPulse=now;armed=false;detectionQuality.textContent=`Detection: pulse accepted • peak +${peakDelta.toFixed(0)}`;}else detectionQuality.textContent='Detection: rejected noise';signalRising=false;signalPeak=0;signalStart=0;}else if(duration>1000){signalRising=false;signalPeak=0;signalStart=0;armed=true;baseline=v;detectionQuality.textContent='Detection: signal stabilized';}else detectionQuality.textContent='Detection: pulse shape detected';}if(!signalRising&&armed){if(Math.abs(delta)<threshold*0.6)baseline=baseline*0.97+v*0.03;detectionQuality.textContent='Detection: watching';}if(!armed&&!signalRising&&v<baseline+5){armed=true;signalPeak=0;detectionQuality.textContent='Detection: watching';setStatus('Watching for next flash');}}
+function analyze(){
+  const vw=video.videoWidth,vh=video.videoHeight;
+  if(!vw||!vh)return null;
+  const size=Math.min(vw,vh)*0.06,sx=(vw-size)/2,sy=(vh-size)/2;
+  if(canvas.width!==120||canvas.height!==120){canvas.width=120;canvas.height=120;}
+  ctx.drawImage(video,sx,sy,size,size,0,0,120,120);
+  const data=ctx.getImageData(0,0,120,120).data;
+  let score=0,n=0,clustered=0;
+  for(let y=1;y<119;y++){
+    for(let x=1;x<119;x++){
+      const i=(y*120+x)*4,r=data[i],gr=data[i+1],b=data[i+2];
+      const redExcess=r-Math.max(gr,b);
+      const redRatio=r/Math.max(1,gr+b);
+      if(redExcess>=28&&r>=55&&redRatio>=0.52){
+        score+=redExcess;n++;
+        let neighbors=0;
+        for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(dx||dy){
+          const j=((y+dy)*120+(x+dx))*4,rr=data[j],gg=data[j+1],bb=data[j+2];
+          const neighborExcess=rr-Math.max(gg,bb);
+          const neighborRatio=rr/Math.max(1,gg+bb);
+          if(neighborExcess>=28&&rr>=55&&neighborRatio>=0.52)neighbors++;
+        }
+        if(neighbors>=2)clustered++;
+      }
+    }
+  }
+  if(n<10||clustered<7)return 0;
+  return clustered/n<0.45?0:score/n;
+}
+function drawGraph(){const w=graph.width,h=graph.height,left=48,right=8,top=12,bottom=24,plotW=w-left-right,plotH=h-top-bottom;g.clearRect(0,0,w,h);g.font='11px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';g.textAlign='right';g.textBaseline='middle';if(powerHistory.length){const watts=powerHistory.map(p=>p.watts),maxData=Math.max(...watts),minData=Math.min(...watts),range=Math.max(100,maxData-minData),pad=range*.12,max=Math.max(100,maxData+pad),min=Math.max(0,minData-pad),latest=powerHistory[powerHistory.length-1].time,earliest=Math.min(...powerHistory.map(p=>p.time)),span=Math.max(1000,latest-earliest);for(let i=0;i<=4;i++){const value=min+(max-min)*i/4,y=top+plotH-(i/4)*plotH;g.strokeStyle='#333';g.lineWidth=1;g.beginPath();g.moveTo(left,y);g.lineTo(w-right,y);g.stroke();g.fillStyle='#999';g.fillText(formatPower(value),left-7,y);}if(powerHistory.length>1){g.strokeStyle='#ff3b30';g.lineWidth=2;g.beginPath();powerHistory.forEach((p,i)=>{const x=left+((p.time-earliest)/span)*(plotW-1),y=top+plotH-(p.watts-min)/(max-min)*plotH;if(i===0)g.moveTo(x,y);else g.lineTo(x,y);});g.stroke();}}else{g.fillStyle='#777';g.textAlign='center';g.fillText('Power history will appear after pulses are detected.',w/2,h/2);return;}g.fillStyle='#777';g.textAlign='center';g.textBaseline='alphabetic';g.fillText('Older',left+20,h-7);g.textAlign='right';g.fillText('Latest',w-right,h-7);}function detectFlash(v){
+  if(!measurementRunning||document.hidden)return;
+  const now=performance.now();
+  if(baseline===null)baseline=v;
+  const delta=v-baseline,threshold=Math.max(35,baseline*0.9);
+  if(armed&&!signalRising&&delta>threshold){
+    signalRising=true;signalStart=now;signalPeak=v;
+    detectionQuality.textContent='Detection: possible red pulse';
+  }
+  if(signalRising){
+    if(v>signalPeak)signalPeak=v;
+    const peakDelta=signalPeak-baseline,duration=now-signalStart,hasFallen=v<baseline+peakDelta*0.45;
+    if(hasFallen&&duration>=12&&duration<=1000){
+      if(now-lastDetectedPulse>=80&&peakDelta>threshold){
+        flashCount++;registerPulseForPower();countEl.textContent=flashCount;lastEl.textContent=new Date().toLocaleTimeString();
+        setStatus('FLASH DETECTED',true);lastFlash=now;lastDetectedPulse=now;armed=false;
+        detectionQuality.textContent='Detection: red pulse accepted';
+      }else detectionQuality.textContent='Detection: rejected noise';
+      signalRising=false;signalPeak=0;signalStart=0;
+    }else if(duration>1000){
+      signalRising=false;signalPeak=0;signalStart=0;armed=true;baseline=v;
+      detectionQuality.textContent='Detection: signal stabilized';
+    }else detectionQuality.textContent='Detection: red pulse shape detected';
+  }
+  if(!signalRising&&armed){
+    if(Math.abs(delta)<threshold*0.5)baseline=baseline*0.97+v*0.03;
+    detectionQuality.textContent='Detection: watching';
+  }
+  if(!armed&&!signalRising&&v<baseline+8){
+    armed=true;signalPeak=0;detectionQuality.textContent='Detection: watching';setStatus('Watching for next flash');
+  }
+}
 let processingStarted=false,videoFrameCallbackId=null;function processFrame(ts){if(!stream||document.hidden)return;const v=analyze();if(v!==null){values.push(v);if(values.length>5000)values.shift();detectFlash(v);if(ts-lastGraphDraw>=100){lastGraphDraw=ts;drawGraph();}}}function startProcessingLoop(){if(processingStarted)return;processingStarted=true;if(typeof video.requestVideoFrameCallback==='function'){const onVideoFrame=(now)=>{if(!processingStarted||!stream)return;if(!document.hidden)processFrame(now);videoFrameCallbackId=video.requestVideoFrameCallback(onVideoFrame);};videoFrameCallbackId=video.requestVideoFrameCallback(onVideoFrame);}else{const onAnimationFrame=(ts)=>{if(!processingStarted||!stream)return;if(!document.hidden)processFrame(ts);requestAnimationFrame(onAnimationFrame);};requestAnimationFrame(onAnimationFrame);}}
 startBtn.addEventListener('click',startCamera);torchBtn.addEventListener('click',toggleTorch);
 window.addEventListener('pagehide',()=>{processingStarted=false;if(stream){stream.getTracks().forEach(t=>t.stop());}stream=null;track=null;video.srcObject=null;torchOn=false;torchBtn.disabled=true;startBtn.disabled=false;startBtn.textContent='Start camera';setStatus('Camera not started');document.getElementById('cameraInfo').textContent='Camera settings: —';});
