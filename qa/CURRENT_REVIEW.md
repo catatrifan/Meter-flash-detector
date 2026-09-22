@@ -326,3 +326,18 @@ No physical iPhone/Safari test was performed during this re-review. The followin
 **READY FOR CONTROLLED PHYSICAL TESTING; NOT READY TO CLAIM REAL-WORLD MEASUREMENT ACCURACY.**
 
 The current code passes the static re-check for the cumulative-average calculation and power-display update path. If the deployed build still shows no instant/average power while the pulse counter increments, that is now a deployment/runtime regression rather than the calculation logic identified in the source review.
+
+
+### QA-018 — MEDIUM — Average power is pulse-event driven and can remain stale/blank
+**Status: OPEN**  
+**Evidence: STATIC REVIEW + user-reported runtime symptom**
+
+The current average-power calculation is only refreshed when `registerPulseForPower()` runs, i.e. when an accepted pulse is detected. There is no timer/frame-loop update for the average between pulse events. The top “AVERAGE POWER · SINCE START” value therefore remains — until a second valid pulse is accepted, and after that it remains frozen at the last accepted pulse until the next accepted pulse.
+
+The implementation also increments `measurementPulseCount` before validating the interval. If a second detected event produces an interval outside the accepted 0.05–3600 s range, the count changes but no average is calculated from that event, which can leave the UI inconsistent with the actual valid interval count.
+
+**Why it matters:** The UI presents an average-power measurement, but the value may appear non-functional or stale during a measurement. This is particularly noticeable at low loads, where pulse intervals are long.
+
+**Expected:** Define the average window in terms of valid complete pulse intervals and update the displayed average consistently from that valid state. At minimum, the UI should explicitly show that it is waiting for the next valid pulse rather than appearing broken; ideally the average should be recomputed periodically from the first valid pulse through the current time when that definition is appropriate.
+
+**Verification:** On a known stable load, start measurement between pulses and observe the average card before the first pulse, after the first pulse, after the second pulse, and while waiting for the third. Test a case where an interval is rejected as invalid.
