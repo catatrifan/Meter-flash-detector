@@ -26,3 +26,12 @@
 - Added QA-013: the new “Average Power · Last 5 Readings” display uses a median interval, not an arithmetic average.
 - Added QA-014: the new prominent power displays do not by themselves establish measurement stability.
 - No physical iPhone/meter testing was performed.
+
+## 2026-09-22 — Latest QA review
+- Re-reviewed current main branch and all prior findings.
+- QA-009 is now FIXED by static inspection through the time-based power-history graph.
+- QA-013 is FIXED by the new “Average power · Since Start” label/calculation.
+- QA-002 and QA-011 improved but require verification; QA-010 remains open.
+- Added QA-015: since-start average is biased by the incomplete first pulse interval.
+- Added QA-016: page lifecycle restoration can leave camera controls inconsistent after pagehide/bfcache restoration.
+- No physical iPhone/meter testing was performed.
