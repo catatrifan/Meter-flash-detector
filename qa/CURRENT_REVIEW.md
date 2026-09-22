@@ -442,3 +442,21 @@ Correct relationship:
 Example: 1000 impulses/kWh and a 3.6-second interval gives approximately 1000 W. QA must not recommend replacing 3,600,000,000 with 3,600,000 unless elapsedMs is first converted to seconds.
 
 This correction supersedes the previous QA-021 conclusion. Future reviews should verify units/dimensions before recommending a change to this formula.
+
+### Power calculation unit alignment — 2026-09-23
+
+#### QA-021 — INVALID FINDING — superseded and explicitly documented
+The previous QA-021 claim that the cumulative-average factor 3,600,000,000 was 1000× too large was incorrect. The source uses `elapsedMs`, which is milliseconds. The repository now makes the unit convention explicit with named constants:
+- `POWER_FACTOR_SECONDS = 3,600,000` for interval values expressed in seconds.
+- `POWER_FACTOR_MILLISECONDS = 3,600,000,000` for elapsed values expressed directly in milliseconds.
+
+The cumulative-average formula is therefore:
+`completeIntervals × 3,600,000,000 / (elapsedMs × meterConstant)`.
+
+The equivalent seconds-based formula is:
+`completeIntervals × 3,600,000 / (elapsedSeconds × meterConstant)`.
+
+The application code has been aligned so all power calculations use the named constants rather than repeated magic numbers. A regression test (T21) has been added to TEST_PLAN.md. This entry supersedes the earlier QA-021 recommendation to change the factor to 3,600,000.
+
+#### Current status
+Static code alignment is complete. Physical/runtime verification of known-load readings remains outstanding.
