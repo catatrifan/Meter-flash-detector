@@ -85,3 +85,12 @@
 - No application code was changed by QA.
 - No physical iPhone/meter tests were performed.
 - Current verdict: **BLOCKED — NOT READY FOR CONTROLLED PHYSICAL TESTING.**
+
+
+## 2026-09-23 — Average-power unit alignment
+- Corrected the actual defect in `updatePowerDisplay()`: it was using 3,600,000 while dividing by an elapsed value in milliseconds, making the displayed cumulative average 1000× too low.
+- Aligned all power calculations around explicit named constants for seconds and milliseconds.
+- Documented the unit convention in QA_PROTOCOL.md.
+- Added T21 to TEST_PLAN.md for a known 3.6-second / 1000 imp/kWh calculation check.
+- The earlier QA-021 finding that 3,600,000,000 was too large remains a documented invalid historical finding and is superseded by the unit-aligned implementation.
+- No physical iPhone/meter test was performed.
