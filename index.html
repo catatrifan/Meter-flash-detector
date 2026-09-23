@@ -334,7 +334,7 @@ function registerPulseForPower(){
   }
 
   lastPulseTime=now;
-  updateTimerAndStats();updatePowerDisplay();drawGraph();
+  updateTimerAndStats();drawGraph();
 }
 function updatePowerDisplay(){
   if(!measurementPulseCount||!recentIntervals.length)return;
