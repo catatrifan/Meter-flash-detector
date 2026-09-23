@@ -321,16 +321,12 @@ function registerPulseForPower(){
     const averageWatts=completeIntervals>0&&elapsedMs>0
       ?(completeIntervals*POWER_FACTOR_MILLISECONDS)/(elapsedMs*meterConstant)
       :null;
-    if(Number.isFinite(averageWatts)){
-      averagePowerEl.textContent=formatPower(averageWatts);
-      updateStatsReadings(instantWatts,averageWatts);
-    }else{
-      updateStatsReadings(instantWatts,null);
-    }
+    // Power displays are refreshed by the once-per-second measurement timer.
+
   }else if(!validInterval){
     // Invalid intervals do not contribute to pulse-count or cumulative average.
     if(lastPulseTime) setInstantWaiting('Waiting for next valid red pulse');
-    updateStatsReadings(null,null);
+    // Power displays are refreshed by the once-per-second measurement timer.
   }
 
   lastPulseTime=now;
