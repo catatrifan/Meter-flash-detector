@@ -396,7 +396,80 @@ let stream=null,track=null,torchOn=false,values=[],flashCount=0,lastFlash=0,base
 function setStatus(s,flash=false){}
 async function startCamera(){try{if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){throw new Error('Camera access is not available in this browser or page context.');}stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720},frameRate:{ideal:120,min:60}},audio:false});track=stream.getVideoTracks()[0];video.srcObject=stream;await video.play();const settings=track.getSettings?track.getSettings():{},fps=settings.frameRate?settings.frameRate.toFixed(1):'unknown',resolution=settings.width&&settings.height?`${settings.width} × ${settings.height}`:'unknown';document.getElementById('cameraInfo').textContent=`Camera settings: ${resolution} • ${fps} FPS`;const caps=track.getCapabilities?track.getCapabilities():{};torchOverlay.disabled=!caps.torch;torchOverlay.style.opacity=caps.torch?'.75':'.35';startBtn.disabled=true;startBtn.textContent='Camera running';startProcessingLoop();}catch(e){if(stream){stream.getTracks().forEach(t=>t.stop());}stream=null;track=null;video.srcObject=null;setStatus('Camera access failed: '+e.message);}}
 async function toggleTorch(){if(!track)return;const caps=track.getCapabilities?track.getCapabilities():{};if(!caps.torch){setStatus('This browser/device does not expose flashlight control');return;}torchOn=!torchOn;try{await track.applyConstraints({advanced:[{torch:torchOn}]});torchOverlay.style.opacity=torchOn?'1':'.75';}catch(e){setStatus('Could not change flashlight');}}
-function analyze(){const vw=video.videoWidth,vh=video.videoHeight;if(!vw||!vh)return null;const size=Math.min(vw,vh)*0.105,sx=(vw-size)/2,sy=(vh-size)/2;if(canvas.width!==120||canvas.height!==120){canvas.width=120;canvas.height=120;}ctx.drawImage(video,sx,sy,size,size,0,0,120,120);const data=ctx.getImageData(0,0,120,120).data;const reds=[];for(let i=0;i<data.length;i+=4){const r=data[i],gr=data[i+1],b=data[i+2],red=r-Math.max(gr,b);if(red>8&&r>30)reds.push(red);}if(!reds.length)return 0;reds.sort((a,b)=>b-a);const topN=Math.max(3,Math.ceil(reds.length*0.05));let sum=0;for(let i=0;i<topN;i++)sum+=reds[i];return sum/topN;}
+function analyzeRedSignal(data){
+  const gridSize=60;
+  const mask=new Uint8Array(gridSize*gridSize);
+  const score=new Float32Array(gridSize*gridSize);
+  const blockCount=gridSize*gridSize;
+
+  // Aggregate 2x2 camera pixels before classification. This reduces sensor noise
+  // while preserving enough spatial detail for the small LED target.
+  for(let y=0;y<gridSize;y++){
+    for(let x=0;x<gridSize;x++){
+      const p=((y*2)*120+x*2)*4;
+      const r=(data[p]+data[p+4]+data[p+480]+data[p+484])*0.25;
+      const gr=(data[p+1]+data[p+5]+data[p+481]+data[p+485])*0.25;
+      const b=(data[p+2]+data[p+6]+data[p+482]+data[p+486])*0.25;
+      const max=Math.max(r,gr,b),min=Math.min(r,gr,b);
+      if(max<25||r<=gr*1.35||r<=b*1.8)continue;
+      const saturation=(max-min)/max;
+      const redExcess=r-Math.max(gr,b);
+      if(saturation<0.42||redExcess<10)continue;
+      const i=y*gridSize+x;
+      mask[i]=1;
+      score[i]=redExcess*(0.55+0.45*saturation);
+    }
+  }
+
+  let best=0;
+  const queue=new Int16Array(blockCount);
+  const visited=new Uint8Array(blockCount);
+  for(let start=0;start<blockCount;start++){
+    if(!mask[start]||visited[start])continue;
+    let head=0,tail=0,area=0,sum=0,peak=0,minX=gridSize,minY=gridSize,maxX=0,maxY=0;
+    queue[tail++]=start;
+    visited[start]=1;
+    while(head<tail){
+      const index=queue[head++];
+      const x=index%gridSize,y=(index/gridSize)|0;
+      area++;
+      sum+=score[index];
+      if(score[index]>peak)peak=score[index];
+      if(x<minX)minX=x;if(x>maxX)maxX=x;if(y<minY)minY=y;if(y>maxY)maxY=y;
+      for(let dy=-1;dy<=1;dy++){
+        for(let dx=-1;dx<=1;dx++){
+          if(dx===0&&dy===0)continue;
+          const nx=x+dx,ny=y+dy;
+          if(nx<0||nx>=gridSize||ny<0||ny>=gridSize)continue;
+          const ni=ny*gridSize+nx;
+          if(mask[ni]&&!visited[ni]){
+            visited[ni]=1;
+            queue[tail++]=ni;
+          }
+        }
+      }
+    }
+    const boxArea=(maxX-minX+1)*(maxY-minY+1);
+    const compactness=area/boxArea;
+    // Reject isolated noise and very broad/diffuse red regions. A meter LED
+    // should form a compact, saturated cluster rather than a skin-like field.
+    if(area<4||area>180||compactness<0.28)continue;
+    const mean=sum/area;
+    const concentration=Math.min(1,area/18);
+    const candidate=mean*(0.65+0.35*concentration)+peak*0.35;
+    if(candidate>best)best=candidate;
+  }
+  return best;
+}
+
+function analyze(){
+  const vw=video.videoWidth,vh=video.videoHeight;
+  if(!vw||!vh)return null;
+  const size=Math.min(vw,vh)*0.105,sx=(vw-size)/2,sy=(vh-size)/2;
+  if(canvas.width!==120||canvas.height!==120){canvas.width=120;canvas.height=120;}
+  ctx.drawImage(video,sx,sy,size,size,0,0,120,120);
+  return analyzeRedSignal(ctx.getImageData(0,0,120,120).data);
+}
 
 function drawGraph(){const w=graph.width,h=graph.height,left=48,right=8,top=12,bottom=24,plotW=w-left-right,plotH=h-top-bottom;g.clearRect(0,0,w,h);g.font='11px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';g.textAlign='right';g.textBaseline='middle';if(powerHistory.length){const watts=powerHistory.map(p=>p.watts),maxData=Math.max(...watts),minData=Math.min(...watts),range=Math.max(100,maxData-minData),pad=range*.12,max=Math.max(100,maxData+pad),min=Math.max(0,minData-pad),span=Math.max(1000,powerHistory[powerHistory.length-1].time),startTime=powerHistory[0].time;for(let i=0;i<=4;i++){const value=min+(max-min)*i/4,y=top+plotH-(i/4)*plotH;g.strokeStyle='#333';g.lineWidth=1;g.beginPath();g.moveTo(left,y);g.lineTo(w-right,y);g.stroke();g.fillStyle='#999';g.fillText(formatPower(value),left-7,y);}if(powerHistory.length>1){g.strokeStyle='#ff3b30';g.lineWidth=2;g.beginPath();powerHistory.forEach((p,i)=>{const x=left+((p.time-startTime)/span)*(plotW-1),y=top+plotH-(p.watts-min)/(max-min)*plotH;if(i===0)g.moveTo(x,y);else g.lineTo(x,y);});g.stroke();}}else{g.fillStyle='#777';g.textAlign='center';g.fillText('Power history will appear after pulses are detected.',w/2,h/2);return;}g.fillStyle='#777';g.textAlign='center';g.textBaseline='alphabetic';g.fillText(formatDuration(powerHistory[0].time),left,h-7);g.textAlign='right';g.fillText(formatDuration(powerHistory[powerHistory.length-1].time),w-right,h-7);}
 function detectFlash(v){if(!measurementRunning)return;const now=performance.now();if(baseline===null)baseline=v;const delta=v-baseline,threshold=Math.max(10,baseline*0.35);if(armed&&!signalRising&&delta>threshold){signalRising=true;signalStart=now;signalPeak=v;}if(signalRising){if(v>signalPeak)signalPeak=v;const peakDelta=signalPeak-baseline,duration=now-signalStart,hasFallen=v<baseline+peakDelta*0.45;if(hasFallen&&duration>=8&&duration<=1000){if(now-lastDetectedPulse>=80&&peakDelta>threshold){flashCount++;registerPulseForPower();setStatus('FLASH DETECTED',true);lastFlash=now;lastDetectedPulse=now;armed=false;flashIndicator.classList.add('active');setTimeout(()=>flashIndicator.classList.remove('active'),180);}else signalRising=false;signalPeak=0;signalStart=0;}else if(duration>1000){signalRising=false;signalPeak=0;signalStart=0;}else{} }if(!signalRising&&armed){if(Math.abs(delta)<threshold*0.7)baseline=baseline*0.985+v*0.015;}if(!armed&&!signalRising&&v<baseline+5){armed=true;signalPeak=0;}}
