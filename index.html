@@ -210,8 +210,6 @@ function stopAverageAssessment(){if(averageAssessmentTimer){clearInterval(averag
 function averageEstimateAt(now=performance.now()){if(!meterConstant||!averageAssessmentStart)return null;const elapsedMs=Math.max(1,now-averageAssessmentStart);return POWER_FACTOR_MILLISECONDS/(elapsedMs*meterConstant);}
 function renderAverageEstimate(){
   if(!measurementRunning||!averageAssessmentStart||!meterConstant)return;
-  const elapsedMs=performance.now()-averageAssessmentStart;
-  if(elapsedMs<3000){setAssessmentText('Assessing');return;}
   const estimate=averageEstimateAt();
   if(averageEstimateFrozen){
     if(displayedEstimate!==null&&estimate<displayedEstimate){
@@ -221,11 +219,13 @@ function renderAverageEstimate(){
     }
     return;
   }
+  const elapsedMs=performance.now()-averageAssessmentStart;
+  if(elapsedMs<3000){setAssessmentText('Assessing');return;}
   displayedEstimate=estimate;
   setAssessmentText('Estimated <'+formatPower(estimate)+'. Assessing');
 }
 function startAverageAssessment(startTime,resetDisplayed){stopAverageAssessment();averageAssessmentStart=startTime;if(resetDisplayed){displayedEstimate=null;averageEstimateFrozen=false;}renderAverageEstimate();averageAssessmentTimer=setInterval(renderAverageEstimate,1000);}
-function updateAverageAssessment(){renderAverageEstimate;}
+function updateAverageAssessment(){renderAverageEstimate();}
 function selectInitialMeterPreset(){if(presets.includes(meterConstant)){meterPreset.value=String(meterConstant);customMeterRow.style.display='none';}else{meterPreset.value='custom';meterConstantInput.value=meterConstant;customMeterRow.style.display='flex';}}
 function formatPower(watts){if(!Number.isFinite(watts))return '—';return watts>=1000?((watts/1000).toFixed(2)+' kW'):(watts.toFixed(0)+' W');}
 function formatDuration(ms){if(!Number.isFinite(ms)||ms<0)return '—';const total=Math.floor(ms/1000),h=Math.floor(total/3600),m=Math.floor((total%3600)/60),sec=total%60;return [h,m,sec].map(v=>String(v).padStart(2,'0')).join(':');}
