@@ -214,7 +214,7 @@ const METER_CONSTANT_KEY='meterConstant';
 const POWER_FACTOR_SECONDS=3600000;
 const POWER_FACTOR_MILLISECONDS=3600000000;
 let meterConstant=4000;
-let measurementRunning=false,measurementPaused=false,pulseTimes=[],recentIntervals=[],powerHistory=[],measurementStartTime=0,firstPulseTime=0,firstPulseActiveElapsedMs=0,measurementPulseCount=0,activeElapsedMs=0,lastPulseTime=0,lastPauseTime=0,measurementTimerId=null,peakInstant=null,lowestInstant=null,peakAverage=null,lowestAverage=null;
+let measurementRunning=false,measurementPaused=false,pulseTimes=[],recentIntervals=[],powerHistory=[],measurementStartTime=0,firstPulseTime=0,firstPulseActiveElapsedMs=0,lastCompletePulseActiveElapsedMs=0,measurementPulseCount=0,activeElapsedMs=0,lastPulseTime=0,lastPauseTime=0,measurementTimerId=null,peakInstant=null,lowestInstant=null,peakAverage=null,lowestAverage=null;
 const meterPreset=document.getElementById('meterPreset'),customMeterRow=document.getElementById('customMeterRow'),meterConstantInput=document.getElementById('meterConstant'),startMeasurementButton=document.getElementById('startMeasurement'),stopMeasurementButton=document.getElementById('stopMeasurement'),resetMeasurementButton=document.getElementById('resetMeasurement'),measurementTitle=document.getElementById('measurementTitle'),measurementTimer=document.getElementById('measurementTimer'),pulseCountEl=document.getElementById('pulseCount'),averagePulseIntervalEl=document.getElementById('averagePulseInterval'),timeSinceLastPulseEl=document.getElementById('timeSinceLastPulse'),peakInstantEl=document.getElementById('peakInstantPower'),lowestInstantEl=document.getElementById('lowestInstantPower'),peakAverageEl=document.getElementById('peakAveragePower'),lowestAverageEl=document.getElementById('lowestAveragePower'),helpButton=document.getElementById('helpButton'),tooltip=document.getElementById('tooltip'),tooltipClose=document.getElementById('tooltipClose');
 const presets=[1000,2000,3000,4000,5000];
 meterPreset.value='4000';
@@ -295,10 +295,10 @@ function startMeasurement(){
   const numeric=Number(meterPreset.value==='custom'?meterConstantInput.value:meterPreset.value);
   if(Number.isFinite(numeric)&&numeric>0)meterConstant=numeric;
   if(measurementPaused){measurementPaused=false;measurementRunning=true;flashIndicator.hidden=false;measurementStartTime=performance.now();signalPeak=0;signalStart=0;signalRising=false;armed=true;lastDetectedPulse=-Infinity;measurementTitle.innerHTML='Measuring<span class="assessment-dots">...</span>';startMeasurementButton.disabled=true;stopMeasurementButton.disabled=false;startMeasurementTimer();if(measurementPulseCount===0)resumeAverageAssessment();else stopAverageAssessment();return;}
-  measurementRunning=true;measurementPaused=false;flashIndicator.hidden=false;measurementTitle.innerHTML='Measuring<span class="assessment-dots">...</span>';pulseTimes=[];recentIntervals=[];powerHistory=[];measurementStartTime=performance.now();firstPulseTime=0;firstPulseActiveElapsedMs=0;measurementPulseCount=0;activeElapsedMs=0;lastPulseTime=0;lastPauseTime=0;peakInstant=null;lowestInstant=null;peakAverage=null;lowestAverage=null;values=[];flashCount=0;lastFlash=0;clearDetectorState();setLivePower(null,null);setInstantWaiting('Waiting for 2 red pulses');startAverageAssessment(measurementStartTime,true);startMeasurementButton.disabled=true;stopMeasurementButton.disabled=false;startMeasurementTimer();updateStatsReadings(null,null);drawGraph();
+  measurementRunning=true;measurementPaused=false;flashIndicator.hidden=false;measurementTitle.innerHTML='Measuring<span class="assessment-dots">...</span>';pulseTimes=[];recentIntervals=[];powerHistory=[];measurementStartTime=performance.now();firstPulseTime=0;firstPulseActiveElapsedMs=0;lastCompletePulseActiveElapsedMs=0;measurementPulseCount=0;activeElapsedMs=0;lastPulseTime=0;lastPauseTime=0;peakInstant=null;lowestInstant=null;peakAverage=null;lowestAverage=null;values=[];flashCount=0;lastFlash=0;clearDetectorState();setLivePower(null,null);setInstantWaiting('Waiting for 2 red pulses');startAverageAssessment(measurementStartTime,true);startMeasurementButton.disabled=true;stopMeasurementButton.disabled=false;startMeasurementTimer();updateStatsReadings(null,null);drawGraph();
 }
 function pauseMeasurement(){if(!measurementRunning)return;activeElapsedMs=getActiveElapsedMs();measurementRunning=false;measurementPaused=true;lastPauseTime=performance.now();pauseAverageAssessment();stopMeasurementTimer();measurementTitle.textContent='Measurement paused';flashIndicator.hidden=true;flashIndicator.classList.remove('active');startMeasurementButton.disabled=false;stopMeasurementButton.disabled=true;updateTimerAndStats();}
-function resetMeasurement(){stopMeasurementTimer();stopAverageAssessment();averageAssessmentStart=0;averageAssessmentElapsedMs=0;displayedEstimate=null;averageEstimateFrozen=false;freezeWaitingForEstimate=false;measurementRunning=false;measurementPaused=false;flashIndicator.hidden=true;flashIndicator.classList.remove('active');measurementTitle.textContent='Set Pulse constant and press Start to begin measuring';pulseTimes=[];recentIntervals=[];powerHistory=[];measurementStartTime=0;firstPulseTime=0;measurementPulseCount=0;activeElapsedMs=0;lastPulseTime=0;lastPauseTime=0;peakInstant=null;lowestInstant=null;peakAverage=null;lowestAverage=null;values=[];flashCount=0;lastFlash=0;clearDetectorState();pulseCountEl.textContent='0';averagePulseIntervalEl.textContent='—';timeSinceLastPulseEl.textContent='—';updateStatsReadings(null,null);setLivePower(null,null);measurementTimer.textContent='00:00:00';startMeasurementButton.disabled=false;stopMeasurementButton.disabled=true;drawGraph();}
+function resetMeasurement(){stopMeasurementTimer();stopAverageAssessment();averageAssessmentStart=0;averageAssessmentElapsedMs=0;displayedEstimate=null;averageEstimateFrozen=false;freezeWaitingForEstimate=false;measurementRunning=false;measurementPaused=false;flashIndicator.hidden=true;flashIndicator.classList.remove('active');measurementTitle.textContent='Set Pulse constant and press Start to begin measuring';pulseTimes=[];recentIntervals=[];powerHistory=[];measurementStartTime=0;firstPulseTime=0;firstPulseActiveElapsedMs=0;lastCompletePulseActiveElapsedMs=0;measurementPulseCount=0;activeElapsedMs=0;lastPulseTime=0;lastPauseTime=0;peakInstant=null;lowestInstant=null;peakAverage=null;lowestAverage=null;values=[];flashCount=0;lastFlash=0;clearDetectorState();pulseCountEl.textContent='0';averagePulseIntervalEl.textContent='—';timeSinceLastPulseEl.textContent='—';updateStatsReadings(null,null);setLivePower(null,null);measurementTimer.textContent='00:00:00';startMeasurementButton.disabled=false;stopMeasurementButton.disabled=true;drawGraph();}
 startMeasurementButton.addEventListener('click',startMeasurement);stopMeasurementButton.addEventListener('click',pauseMeasurement);resetMeasurementButton.addEventListener('click',resetMeasurement);
 function registerPulseForPower(){
   if(!measurementRunning||!Number.isFinite(meterConstant)||meterConstant<=0)return;
@@ -313,6 +313,7 @@ function registerPulseForPower(){
   const validInterval=interval!==null&&interval>0.05&&interval<3600;
   if(validInterval){
     measurementPulseCount++;
+    lastCompletePulseActiveElapsedMs=getActiveElapsedMs(now);
     recentIntervals.push(interval);
     instantWatts=POWER_FACTOR_SECONDS/(interval*meterConstant);
     powerHistory.push({time:getActiveElapsedMs(now),watts:instantWatts});
@@ -350,7 +351,7 @@ function registerPulseForPower(){
     stopAverageAssessment();
     averageEstimateFrozen=false;
     freezeWaitingForEstimate=false;
-    const elapsedMs=getActiveElapsedMs(now)-firstPulseActiveElapsedMs;
+    const elapsedMs=lastCompletePulseActiveElapsedMs-firstPulseActiveElapsedMs;
     const completeIntervals=measurementPulseCount;
     const averageWatts=completeIntervals>0&&elapsedMs>0
       ?(completeIntervals*POWER_FACTOR_MILLISECONDS)/(elapsedMs*meterConstant)
@@ -369,7 +370,7 @@ function registerPulseForPower(){
 function updatePowerDisplay(){
   if(!measurementPulseCount||!recentIntervals.length)return;
   const latestInterval=recentIntervals[recentIntervals.length-1];
-  const elapsedMs=getActiveElapsedMs()-firstPulseActiveElapsedMs;
+  const elapsedMs=lastCompletePulseActiveElapsedMs-firstPulseActiveElapsedMs;
   const completeIntervals=measurementPulseCount;
   const averageWatts=completeIntervals>0&&elapsedMs>0
     ?(completeIntervals*POWER_FACTOR_MILLISECONDS)/(elapsedMs*meterConstant)
