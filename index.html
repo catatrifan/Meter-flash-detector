@@ -190,31 +190,35 @@ function formatPower(watts){if(!Number.isFinite(watts))return '—';return watts
 function setLivePower(instant,average){if(instant===null)instantPowerEl.textContent='-';else if(!Number.isFinite(instant))instantPowerEl.textContent='-';else instantPowerEl.textContent=formatPower(instant);if(average===null||!Number.isFinite(average))averagePowerEl.textContent='-';else averagePowerEl.textContent=formatPower(average);}
 function setAssessmentText(text){averagePowerEl.innerHTML='<span class="state-text">'+text+'<span class="assessment-dots">...</span></span>';}
 function setInstantWaiting(text){instantPowerEl.innerHTML='<span class="state-text">'+text+'<span class="assessment-dots">...</span></span>';}
-let averageAssessmentTimer=null,averageAssessmentStart=0,averageAssessmentElapsedMs=0,displayedEstimate=null,averageEstimateFrozen=false;
+let averageAssessmentTimer=null,averageAssessmentStart=0,averageAssessmentElapsedMs=0,displayedEstimate=null,averageEstimateFrozen=false,freezeWaitingForEstimate=false;
 function stopAverageAssessment(){if(averageAssessmentTimer){clearInterval(averageAssessmentTimer);averageAssessmentTimer=null;}}
-function averageEstimateAt(now=performance.now()){if(!meterConstant||!averageAssessmentStart)return null;const elapsedMs=Math.max(1,now-averageAssessmentStart);return POWER_FACTOR_MILLISECONDS/(elapsedMs*meterConstant);}
+function averageEstimateAt(){if(!meterConstant||!averageAssessmentStart)return null;const elapsedMs=Math.max(1,averageAssessmentElapsedMs+(measurementRunning?performance.now()-averageAssessmentStart:0));return POWER_FACTOR_MILLISECONDS/(elapsedMs*meterConstant);}
 function renderAverageEstimate(){
   if(!measurementRunning||!averageAssessmentStart||!meterConstant)return;
+  const elapsedMs=averageAssessmentElapsedMs+performance.now()-averageAssessmentStart;
   const estimate=averageEstimateAt();
-  const elapsedMs=performance.now()-averageAssessmentStart;
-  if(elapsedMs<3000){
-    setAssessmentText('Assessing');
-    return;
-  }
   if(averageEstimateFrozen){
-    // After the first pulse, the visible estimate is intentionally frozen.
-    // Keep calculating in the background until the estimate catches up to
-    // (or drops below) the frozen value, then resume normal assessment.
-    if(displayedEstimate===null){
-      displayedEstimate=estimate;
-      setAssessmentText('Estimated <'+formatPower(estimate)+'. Assessing');
+    // The first-pulse display is frozen. The estimate continues in the
+    // background, including across pauses, until it catches up.
+    if(freezeWaitingForEstimate){
+      if(elapsedMs>=3000&&Number.isFinite(estimate)){
+        displayedEstimate=estimate;
+        freezeWaitingForEstimate=false;
+        setAssessmentText('Estimated <'+formatPower(displayedEstimate)+'. Assessing');
+      }else{
+        setAssessmentText('Assessing');
+      }
       return;
     }
-    if(estimate<=displayedEstimate){
+    if(Number.isFinite(estimate)&&estimate<=displayedEstimate){
       averageEstimateFrozen=false;
       displayedEstimate=estimate;
       setAssessmentText('Estimated <'+formatPower(estimate)+'. Assessing');
     }
+    return;
+  }
+  if(elapsedMs<3000){
+    setAssessmentText('Assessing');
     return;
   }
   displayedEstimate=estimate;
@@ -224,18 +228,18 @@ function startAverageAssessment(startTime,resetDisplayed){
   stopAverageAssessment();
   averageAssessmentStart=startTime;
   averageAssessmentElapsedMs=0;
-  if(resetDisplayed){displayedEstimate=null;averageEstimateFrozen=false;}
+  if(resetDisplayed){displayedEstimate=null;averageEstimateFrozen=false;freezeWaitingForEstimate=false;}
   renderAverageEstimate();
   averageAssessmentTimer=setInterval(renderAverageEstimate,1000);
 }
 function pauseAverageAssessment(){
   if(!averageAssessmentStart)return;
-  averageAssessmentElapsedMs=Math.max(0,performance.now()-averageAssessmentStart);
+  averageAssessmentElapsedMs+=Math.max(0,performance.now()-averageAssessmentStart);
   stopAverageAssessment();
 }
 function resumeAverageAssessment(){
   if(!averageAssessmentStart)return;
-  averageAssessmentStart=performance.now()-averageAssessmentElapsedMs;
+  averageAssessmentStart=performance.now();
   renderAverageEstimate();
   averageAssessmentTimer=setInterval(renderAverageEstimate,1000);
 }
@@ -260,7 +264,7 @@ function startMeasurement(){
   measurementRunning=true;measurementPaused=false;measurementTitle.innerHTML='Measuring<span class="assessment-dots">...</span>';pulseTimes=[];recentIntervals=[];powerHistory=[];measurementStartTime=performance.now();firstPulseTime=0;firstPulseActiveElapsedMs=0;measurementPulseCount=0;activeElapsedMs=0;lastPulseTime=0;lastPauseTime=0;peakInstant=null;lowestInstant=null;peakAverage=null;lowestAverage=null;values=[];flashCount=0;lastFlash=0;clearDetectorState();setLivePower(null,null);setInstantWaiting('Waiting for 2 red pulses');startAverageAssessment(measurementStartTime,true);startMeasurementButton.disabled=true;stopMeasurementButton.disabled=false;startMeasurementTimer();updateStatsReadings(null,null);drawGraph();detectionQuality.textContent='Detection: watching';powerDetail.textContent='Measuring • '+meterConstant+' impulses/kWh';
 }
 function pauseMeasurement(){if(!measurementRunning)return;activeElapsedMs=getActiveElapsedMs();measurementRunning=false;measurementPaused=true;lastPauseTime=performance.now();pauseAverageAssessment();stopMeasurementTimer();measurementTitle.textContent='Measurement paused';startMeasurementButton.disabled=false;stopMeasurementButton.disabled=true;powerDetail.textContent='Measurement paused • Press Start to resume';updateTimerAndStats();}
-function resetMeasurement(){stopMeasurementTimer();stopAverageAssessment();averageAssessmentStart=0;averageAssessmentElapsedMs=0;displayedEstimate=null;averageEstimateFrozen=false;measurementRunning=false;measurementPaused=false;measurementTitle.textContent='Set Pulse constant and press Start to begin measuring';pulseTimes=[];recentIntervals=[];powerHistory=[];measurementStartTime=0;firstPulseTime=0;measurementPulseCount=0;activeElapsedMs=0;lastPulseTime=0;lastPauseTime=0;peakInstant=null;lowestInstant=null;peakAverage=null;lowestAverage=null;values=[];flashCount=0;lastFlash=0;clearDetectorState();pulseCountEl.textContent='0';averagePulseIntervalEl.textContent='—';timeSinceLastPulseEl.textContent='—';updateStatsReadings(null,null);setLivePower(null,null);measurementTimer.textContent='00:00:00';powerDetail.textContent=Number(meterConstantInput.value)>0?'Ready to measure.':'Set a Pulse constant before starting.';detectionQuality.textContent='Detection: waiting for signal';startMeasurementButton.disabled=false;stopMeasurementButton.disabled=true;drawGraph();}
+function resetMeasurement(){stopMeasurementTimer();stopAverageAssessment();averageAssessmentStart=0;averageAssessmentElapsedMs=0;displayedEstimate=null;averageEstimateFrozen=false;freezeWaitingForEstimate=false;measurementRunning=false;measurementPaused=false;measurementTitle.textContent='Set Pulse constant and press Start to begin measuring';pulseTimes=[];recentIntervals=[];powerHistory=[];measurementStartTime=0;firstPulseTime=0;measurementPulseCount=0;activeElapsedMs=0;lastPulseTime=0;lastPauseTime=0;peakInstant=null;lowestInstant=null;peakAverage=null;lowestAverage=null;values=[];flashCount=0;lastFlash=0;clearDetectorState();pulseCountEl.textContent='0';averagePulseIntervalEl.textContent='—';timeSinceLastPulseEl.textContent='—';updateStatsReadings(null,null);setLivePower(null,null);measurementTimer.textContent='00:00:00';powerDetail.textContent=Number(meterConstantInput.value)>0?'Ready to measure.':'Set a Pulse constant before starting.';detectionQuality.textContent='Detection: waiting for signal';startMeasurementButton.disabled=false;stopMeasurementButton.disabled=true;drawGraph();}
 startMeasurementButton.addEventListener('click',startMeasurement);stopMeasurementButton.addEventListener('click',pauseMeasurement);resetMeasurementButton.addEventListener('click',resetMeasurement);
 function registerPulseForPower(){
   if(!measurementRunning||!Number.isFinite(meterConstant)||meterConstant<=0)return;
@@ -292,12 +296,19 @@ function registerPulseForPower(){
   if(wasFirstDetectedPulse){
     // First pulse: keep the pre-pulse assessment behavior; no complete interval exists yet.
     averageEstimateFrozen=true;
-    if(displayedEstimate!==null)setAssessmentText('Estimated <'+formatPower(displayedEstimate)+'. Assessing');
+    if(Number.isFinite(displayedEstimate)){
+      freezeWaitingForEstimate=false;
+      setAssessmentText('Estimated <'+formatPower(displayedEstimate)+'. Assessing');
+    }else{
+      freezeWaitingForEstimate=true;
+      setAssessmentText('Assessing');
+    }
   }else if(measurementPulseCount>=1){
     // Second pulse onward: replace the estimate with the exact cumulative
     // average over all complete pulse intervals.
     stopAverageAssessment();
     averageEstimateFrozen=false;
+    freezeWaitingForEstimate=false;
     const elapsedMs=getActiveElapsedMs(now)-firstPulseActiveElapsedMs;
     const completeIntervals=measurementPulseCount;
     const averageWatts=completeIntervals>0&&elapsedMs>0
