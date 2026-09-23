@@ -211,16 +211,16 @@ function averageEstimateAt(now=performance.now()){if(!meterConstant||!averageAss
 function renderAverageEstimate(){
   if(!measurementRunning||!averageAssessmentStart||!meterConstant)return;
   const estimate=averageEstimateAt();
+  const elapsedMs=performance.now()-averageAssessmentStart;
+  if(elapsedMs<3000){setAssessmentText('Assessing');return;}
   if(averageEstimateFrozen){
     if(displayedEstimate!==null&&estimate<displayedEstimate){
       averageEstimateFrozen=false;
       displayedEstimate=estimate;
-      setAssessmentText('Estimated <'+formatPower(estimate));
+      setAssessmentText('Estimated <'+formatPower(estimate)+'. Assessing');
     }
     return;
   }
-  const elapsedMs=performance.now()-averageAssessmentStart;
-  if(elapsedMs<3000){setAssessmentText('Assessing');return;}
   displayedEstimate=estimate;
   setAssessmentText('Estimated <'+formatPower(estimate)+'. Assessing');
 }
@@ -266,15 +266,17 @@ function registerPulseForPower(){
   }else if(!lastPulseTime){setInstantWaiting('Waiting for one more red pulse');}
   lastPulseTime=now;
   if(measurementPulseCount===1){
-    const frozen=displayedEstimate;
-    averageAssessmentFrozen=frozen!==null;
-    if(averageAssessmentFrozen){
-      averageAssessmentStart=now;
-      stopAverageAssessment();
-      renderAverageEstimate();
-      averageAssessmentTimer=setInterval(renderAverageEstimate,1000);
-      setAssessmentText('Estimated <'+formatPower(frozen)+'. Assessing');
-    }
+    averageEstimateFrozen=true;
+    if(displayedEstimate!==null)setAssessmentText('Estimated <'+formatPower(displayedEstimate)+'. Assessing');
+  }else if(measurementPulseCount>=2&&recentIntervals.length){
+    stopAverageAssessment();
+    averageEstimateFrozen=false;
+    const elapsedMs=now-firstPulseTime;
+    const completeIntervals=measurementPulseCount-1;
+    const averageWatts=completeIntervals>0&&elapsedMs>0
+      ?(completeIntervals*POWER_FACTOR_MILLISECONDS)/(elapsedMs*meterConstant)
+      :null;
+    if(Number.isFinite(averageWatts))averagePowerEl.textContent=formatPower(averageWatts);
   }
   updateTimerAndStats();updatePowerDisplay();drawGraph();
 }
