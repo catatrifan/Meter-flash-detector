@@ -255,7 +255,7 @@ function setAssessmentText(text){averagePowerEl.innerHTML='<span class="state-te
 function setInstantWaiting(text){instantPowerEl.innerHTML='<span class="state-text">'+text+'<span class="assessment-dots">...</span></span>';}
 function updateStatsReadings(instant,average){if(Number.isFinite(instant)){peakInstant=peakInstant===null?instant:Math.max(peakInstant,instant);lowestInstant=lowestInstant===null?instant:Math.min(lowestInstant,instant);}if(Number.isFinite(average)){peakAverage=peakAverage===null?average:Math.max(peakAverage,average);lowestAverage=lowestAverage===null?average:Math.min(lowestAverage,average);}peakInstantEl.textContent=peakInstant===null?'—':formatPower(peakInstant);lowestInstantEl.textContent=lowestInstant===null?'—':formatPower(lowestInstant);peakAverageEl.textContent=peakAverage===null?'—':formatPower(peakAverage);lowestAverageEl.textContent=lowestAverage===null?'—':formatPower(lowestAverage);}
 function stopMeasurementTimer(){if(measurementTimerId){clearInterval(measurementTimerId);measurementTimerId=null;}}
-function startMeasurementTimer(){stopMeasurementTimer();measurementTimerId=setInterval(updateTimerAndStats,250);updateTimerAndStats();}
+function startMeasurementTimer(){stopMeasurementTimer();measurementTimerId=setInterval(updateTimerAndStats,1000);updateTimerAndStats();}
 function clearDetectorState(){baseline=null;armed=true;peak=0;signalPeak=0;signalStart=0;signalRising=false;lastDetectedPulse=-Infinity;}
 function startMeasurement(){
   const numeric=Number(meterPreset.value==='custom'?meterConstantInput.value:meterPreset.value);
