@@ -14,14 +14,14 @@
   .hint { position:absolute; top:14px; left:16px; right:16px; text-align:center; font-size:14px; line-height:1.3; text-shadow:0 1px 4px #000; display:flex; align-items:flex-start; justify-content:center; gap:7px; }
   .help-button,.torch-overlay { pointer-events:auto; width:34px; height:34px; padding:0; border-radius:50%; background:rgba(0,0,0,.65); color:#fff; border:1px solid rgba(255,255,255,.35); display:grid; place-items:center; flex:0 0 auto; }
   .help-button { font-size:17px; margin-top:0; position:absolute; top:0; right:-2px; }
-  .torch-overlay { position:absolute; top:56px; right:14px; }
+  .torch-overlay { position:absolute; top:calc(100% - 12px); transform:translateY(-100%); right:14px; }
   .torch-overlay svg { width:20px; height:20px; fill:currentColor; stroke:none; }
   .hint-text { max-width:calc(100% - 48px); }
-  .tooltip { position:absolute; top:52px; left:12px; right:12px; background:rgba(15,15,15,.96); border:1px solid rgba(255,255,255,.25); border-radius:14px; padding:12px; z-index:5; display:none; pointer-events:auto; box-shadow:0 8px 30px rgba(0,0,0,.45); }
+  .tooltip { position:absolute; top:44px; left:auto; right:16px; width:220px; background:#1677d2; border:1px solid rgba(255,255,255,.35); border-radius:10px; padding:7px; z-index:5; display:none; pointer-events:auto; box-shadow:0 6px 18px rgba(0,0,0,.35); }
   .tooltip.open { display:block; }
-  .tooltip svg { width:100%; height:155px; display:block; }
+  .tooltip svg { width:100%; height:95px; display:block; }
   .tooltip-close { position:absolute; top:6px; right:7px; width:28px; height:28px; padding:0; border-radius:50%; background:#333; color:#fff; font-size:18px; }
-  .tooltip-caption { font-size:12px; color:#ccc; text-align:center; margin-top:4px; }
+  .tooltip-caption { font-size:10px; color:#fff; text-align:center; margin-top:2px; }
   .live-power { position:absolute; left:12px; right:12px; bottom:12px; display:block; pointer-events:none; }
   .power-card { background:rgba(0,0,0,.72); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,.16); border-radius:14px; padding:12px; text-align:center; text-shadow:0 1px 3px #000; }
   .measurement-title { color:#fff; font-size:13px; font-weight:700; margin-bottom:9px; display:flex; align-items:center; justify-content:center; gap:10px; }
@@ -96,7 +96,7 @@
   <div class="overlay">
     <div class="target"></div>
     <div class="hint">
-      <span class="hint-text">Place the target area at the center of the camera over your energy meter's flashing red LED</span>
+      <span class="hint-text">Center the target on the meter's flashing red LED</span>
       <button id="helpButton" class="help-button" type="button" aria-label="Show targeting instructions">?</button>
     </div>
     <div id="tooltip" class="tooltip">
@@ -135,7 +135,7 @@
         <path d="M278 75h27" stroke="#fff" stroke-width="2.5" stroke-dasharray="6 5"/>
         <path d="M298 68l9 7-9 7" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
 
-        <text x="150" y="147" text-anchor="middle" fill="#bbb" font-size="11">Center the target on the flashing LED</text>
+        <text x="150" y="147" text-anchor="middle" fill="#bbb" font-size="11">Center the target on the meter's flashing red LED</text>
         <text x="353" y="147" text-anchor="middle" fill="#bbb" font-size="11">Camera</text>
       </svg>
       <div class="tooltip-caption">The target box should be centered on the meter's flashing red LED.</div>
