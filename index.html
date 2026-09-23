@@ -252,23 +252,35 @@ function registerPulseForPower(){
   if(!measurementRunning||!Number.isFinite(meterConstant)||meterConstant<=0)return;
   const now=performance.now();
   const interval=lastPulseTime?(now-lastPulseTime)/1000:null;
+
+  // Count every detected pulse. The first pulse establishes the start of
+  // the cumulative-average measurement; each following pulse adds one
+  // complete interval. This means the exact average becomes available on
+  // the second detected pulse, not the third.
+  measurementPulseCount++;
+  if(firstPulseTime===0)firstPulseTime=now;
+
+  let instantWatts=null;
   if(interval!==null&&interval>0.05&&interval<3600){
     recentIntervals.push(interval);
-    const instantWatts=POWER_FACTOR_SECONDS/(interval*meterConstant);
-    measurementPulseCount++;
-    if(firstPulseTime===0)firstPulseTime=lastPulseTime;
-    const elapsedMs=now-firstPulseTime;
-    const averageWatts=(measurementPulseCount*POWER_FACTOR_MILLISECONDS)/(elapsedMs*meterConstant);
+    instantWatts=POWER_FACTOR_SECONDS/(interval*meterConstant);
     powerHistory.push({time:getActiveElapsedMs(now),watts:instantWatts});
     const cutoff=Math.max(0,getActiveElapsedMs(now)-5*60*1000);
     powerHistory=powerHistory.filter(p=>p.time>=cutoff);
-    updateStatsReadings(instantWatts,averageWatts);
-  }else if(!lastPulseTime){setInstantWaiting('Waiting for one more red pulse');}
+  }else if(!lastPulseTime){
+    setInstantWaiting('Waiting for one more red pulse');
+  }
+
   lastPulseTime=now;
+
   if(measurementPulseCount===1){
+    // First pulse: keep the pre-pulse assessment behavior, but freeze the
+    // value currently shown. The exact cumulative average is not available yet.
     averageEstimateFrozen=true;
     if(displayedEstimate!==null)setAssessmentText('Estimated <'+formatPower(displayedEstimate)+'. Assessing');
-  }else if(measurementPulseCount>=2&&recentIntervals.length){
+  }else if(measurementPulseCount>=2){
+    // Second pulse onward: replace the estimate with the exact cumulative
+    // average over all complete pulse intervals.
     stopAverageAssessment();
     averageEstimateFrozen=false;
     const elapsedMs=now-firstPulseTime;
@@ -276,11 +288,31 @@ function registerPulseForPower(){
     const averageWatts=completeIntervals>0&&elapsedMs>0
       ?(completeIntervals*POWER_FACTOR_MILLISECONDS)/(elapsedMs*meterConstant)
       :null;
-    if(Number.isFinite(averageWatts))averagePowerEl.textContent=formatPower(averageWatts);
+    if(Number.isFinite(averageWatts)){
+      averagePowerEl.textContent=formatPower(averageWatts);
+      updateStatsReadings(instantWatts,averageWatts);
+    }else{
+      updateStatsReadings(instantWatts,null);
+    }
+  }else{
+    updateStatsReadings(instantWatts,null);
   }
+
   updateTimerAndStats();updatePowerDisplay();drawGraph();
 }
-function updatePowerDisplay(){if(!measurementPulseCount||!recentIntervals.length)return;const latestInterval=recentIntervals[recentIntervals.length-1],elapsedMs=performance.now()-firstPulseTime,averageWatts=(measurementPulseCount*POWER_FACTOR_MILLISECONDS)/(elapsedMs*meterConstant),instantWatts=POWER_FACTOR_SECONDS/(latestInterval*meterConstant);instantPowerEl.textContent=formatPower(instantWatts);updateStatsReadings(instantWatts,averageWatts);}
+function updatePowerDisplay(){
+  if(!measurementPulseCount||!recentIntervals.length)return;
+  const latestInterval=recentIntervals[recentIntervals.length-1];
+  const elapsedMs=performance.now()-firstPulseTime;
+  const completeIntervals=measurementPulseCount-1;
+  const averageWatts=completeIntervals>0&&elapsedMs>0
+    ?(completeIntervals*POWER_FACTOR_MILLISECONDS)/(elapsedMs*meterConstant)
+    :null;
+  const instantWatts=POWER_FACTOR_SECONDS/(latestInterval*meterConstant);
+  instantPowerEl.textContent=formatPower(instantWatts);
+  if(Number.isFinite(averageWatts))averagePowerEl.textContent=formatPower(averageWatts);
+  updateStatsReadings(instantWatts,averageWatts);
+}
 
 const torchOverlay=document.getElementById('torchOverlay');
 const video=document.getElementById('camera'),canvas=document.getElementById('analysis'),ctx=canvas.getContext('2d',{willReadFrequently:true}),graph=document.getElementById('graph'),g=graph.getContext('2d'),startBtn=document.getElementById('start'),statusEl=document.getElementById('status');
