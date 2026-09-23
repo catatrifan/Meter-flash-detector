@@ -411,17 +411,10 @@ function analyzeRedSignal(data){
       const gr=(data[p+1]+data[p+5]+data[p+481]+data[p+485])*0.25;
       const b=(data[p+2]+data[p+6]+data[p+482]+data[p+486])*0.25;
       const max=Math.max(r,gr,b),min=Math.min(r,gr,b);
-      // Start deliberately conservative: a valid LED candidate must be
-      // strongly red, highly saturated, and clearly brighter in red than
-      // either green or blue. This is intentionally restrictive so real-world
-      // skin and weak reddish highlights are rejected before temporal analysis.
-      // Still require strong red dominance, but relax the extreme gate
-      // enough to avoid unnecessarily rejecting a genuine meter LED.
-      // Red must remain at least 2.5x green and 3.5x blue.
-      if(max<40||r<=gr*2.5||r<=b*3.5)continue;
+      if(max<25||r<=gr*1.35||r<=b*1.8)continue;
       const saturation=(max-min)/max;
       const redExcess=r-Math.max(gr,b);
-      if(saturation<0.68||redExcess<30)continue;
+      if(saturation<0.42||redExcess<10)continue;
       const i=y*gridSize+x;
       mask[i]=1;
       score[i]=redExcess*(0.55+0.45*saturation);
@@ -458,17 +451,12 @@ function analyzeRedSignal(data){
     }
     const boxArea=(maxX-minX+1)*(maxY-minY+1);
     const compactness=area/boxArea;
-    // Reject tiny highlights and broad/diffuse red regions. Start with a
-    // deliberately high minimum area: the LED must produce a substantial,
-    // coherent red cluster before temporal flash detection is even considered.
-    if(area<45||area>130||compactness<0.50)continue;
+    // Reject isolated noise and very broad/diffuse red regions. A meter LED
+    // should form a compact, saturated cluster rather than a skin-like field.
+    if(area<4||area>180||compactness<0.28)continue;
     const mean=sum/area;
-    const concentration=Math.min(1,area/55);
-    const candidate=mean*(0.78+0.22*concentration)+peak*0.22;
-    // Extremely conservative first gate: require a large, coherent cluster
-    // whose average red signal is strong. A few saturated skin highlights
-    // should not be sufficient to enter the temporal detector.
-    if(mean<35||peak<45||candidate<38)continue;
+    const concentration=Math.min(1,area/18);
+    const candidate=mean*(0.65+0.35*concentration)+peak*0.35;
     if(candidate>best)best=candidate;
   }
   return best;
