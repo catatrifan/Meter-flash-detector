@@ -294,13 +294,20 @@ function registerPulseForPower(){
     firstPulseActiveElapsedMs=getActiveElapsedMs(now);
   }
   if(wasFirstDetectedPulse){
-    // First pulse: keep the pre-pulse assessment behavior; no complete interval exists yet.
-    averageEstimateFrozen=true;
-    if(Number.isFinite(displayedEstimate)){
-      freezeWaitingForEstimate=false;
+    // First pulse: freeze the value currently shown and restart only the
+    // background assessment clock from this pulse. The assessment then
+    // counts upward from a fresh high estimate until it catches the frozen
+    // value. This is the intended "pause and catch up" behavior.
+    averageEstimateFrozen=Number.isFinite(displayedEstimate);
+    freezeWaitingForEstimate=!averageEstimateFrozen;
+    if(averageEstimateFrozen){
+      averageAssessmentElapsedMs=0;
+      averageAssessmentStart=now;
+      stopAverageAssessment();
+      renderAverageEstimate();
+      averageAssessmentTimer=setInterval(renderAverageEstimate,1000);
       setAssessmentText('Estimated <'+formatPower(displayedEstimate)+'. Assessing');
     }else{
-      freezeWaitingForEstimate=true;
       setAssessmentText('Assessing');
     }
   }else if(measurementPulseCount>=1){
