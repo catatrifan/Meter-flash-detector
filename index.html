@@ -411,10 +411,14 @@ function analyzeRedSignal(data){
       const gr=(data[p+1]+data[p+5]+data[p+481]+data[p+485])*0.25;
       const b=(data[p+2]+data[p+6]+data[p+482]+data[p+486])*0.25;
       const max=Math.max(r,gr,b),min=Math.min(r,gr,b);
-      if(max<25||r<=gr*1.35||r<=b*1.8)continue;
+      // Start deliberately conservative: a valid LED candidate must be
+      // strongly red, highly saturated, and clearly brighter in red than
+      // either green or blue. This is intentionally restrictive so real-world
+      // skin and weak reddish highlights are rejected before temporal analysis.
+      if(max<35||r<=gr*1.60||r<=b*2.20)continue;
       const saturation=(max-min)/max;
       const redExcess=r-Math.max(gr,b);
-      if(saturation<0.42||redExcess<10)continue;
+      if(saturation<0.58||redExcess<18)continue;
       const i=y*gridSize+x;
       mask[i]=1;
       score[i]=redExcess*(0.55+0.45*saturation);
@@ -451,12 +455,17 @@ function analyzeRedSignal(data){
     }
     const boxArea=(maxX-minX+1)*(maxY-minY+1);
     const compactness=area/boxArea;
-    // Reject isolated noise and very broad/diffuse red regions. A meter LED
-    // should form a compact, saturated cluster rather than a skin-like field.
-    if(area<4||area>180||compactness<0.28)continue;
+    // Reject tiny highlights and broad/diffuse red regions. Start with a
+    // deliberately high minimum area: the LED must produce a substantial,
+    // coherent red cluster before temporal flash detection is even considered.
+    if(area<20||area>140||compactness<0.42)continue;
     const mean=sum/area;
-    const concentration=Math.min(1,area/18);
-    const candidate=mean*(0.65+0.35*concentration)+peak*0.35;
+    const concentration=Math.min(1,area/28);
+    const candidate=mean*(0.72+0.28*concentration)+peak*0.28;
+    // Require the whole cluster to be meaningfully red, not just one bright
+    // pixel. These gates are intentionally strict and can be relaxed later
+    // based on real-device false-negative testing.
+    if(mean<24||peak<32||candidate<28)continue;
     if(candidate>best)best=candidate;
   }
   return best;
