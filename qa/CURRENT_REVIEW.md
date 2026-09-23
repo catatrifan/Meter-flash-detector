@@ -569,3 +569,33 @@ This can make the displayed cumulative average disagree with the number of valid
 **BLOCKED — NOT READY FOR CONTROLLED PHYSICAL TESTING.**
 
 The previous QA-020 syntax issue is fixed and QA-021 is invalidated by unit analysis. However, the current redesign introduces multiple correctness regressions around the impulse-constant controls, detector strength, frame sampling, pause/resume averaging, and per-frame canvas allocation.
+
+
+### Latest independent QA re-review — 2026-09-23 — post 5840d77 / 8df362a
+
+#### QA-022 — SUPERSEDED by agreed UI design
+The application intentionally has one Impulse constant control with a default of **4000 impulses/kWh**. The duplicate controls identified previously have been removed. Static verification confirms exactly one `meterPreset`, one `meterConstant`, and one `customMeterRow` ID remain.
+
+#### QA-023 — SUPERSEDED by agreed UI design
+The agreed product behavior is to provide a default **4000 impulses/kWh**, rather than require a blank field before every measurement. The implementation reads the single visible control.
+
+#### QA-024 — FIXED by static inspection
+The analysis canvas is now initialized to 120×120 only when its dimensions differ, rather than being resized on every processed frame.
+
+#### QA-027 — FIXED by static inspection
+Cumulative-average elapsed time now uses active measurement elapsed time, excluding paused periods. The averaging anchor is stored as active elapsed time at the first detected pulse.
+
+#### QA-028 — FIXED by static inspection
+Invalid pulse intervals no longer increment the complete-interval count used by cumulative average calculations. Only valid intervals contribute to `measurementPulseCount` and `recentIntervals`.
+
+#### Second-flash average-power correction — FIXED
+The cumulative average is now based on the number of valid complete pulse intervals. The first detected pulse establishes the averaging anchor; the second detected pulse supplies the first complete interval and therefore displays the exact average. Subsequent valid pulses update the exact cumulative average.
+
+#### Intentionally unchanged
+- **QA-025:** The red-pulse detection algorithm was intentionally left unchanged because the detector is under an explicit no-change constraint without approval.
+- **QA-026:** Processing remains `requestAnimationFrame` for the same detector-preservation constraint; changing frame-sampling behavior could alter detector behavior and requires separate approval.
+
+### Current static verdict
+The duplicate-control, per-frame canvas allocation, pause/resume averaging, invalid-interval counting, and second-flash cumulative-average issues identified in the previous review are fixed statically.
+
+Physical/runtime verification remains outstanding for the detector, camera cadence, known-load accuracy, exposure changes, lifecycle behavior, and other tests in T01–T26.
