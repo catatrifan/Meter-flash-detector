@@ -469,3 +469,103 @@ The measurement UI was redesigned to require an explicitly entered **Impulse con
 The measurement controls now support **Pause/Start resume** rather than Stop. An hh:mm:ss timer is displayed inside Start and tracks active measurement time. The UI also exposes pulse statistics and peak/lowest instant and average readings. The graph x-axis now displays elapsed measurement time.
 
 Static review of the implementation should be followed by T22–T26 and the existing physical power tests. Pause/resume behavior and statistics have not been physically tested.
+
+
+## Latest independent QA re-review — 2026-09-23 (measurement redesign)
+
+### QA-020 re-check
+**Status: FIXED by static inspection**
+
+`startCamera` is now declared `async`, so the previously identified syntax error from `await` inside a non-async function is resolved.
+
+### QA-021 re-check
+**Status: INVALID / superseded**
+
+The cumulative-average factor of 3,600,000,000 is dimensionally correct because `elapsedMs` is in milliseconds. The current implementation uses named seconds/milliseconds constants consistently. No 1000× defect remains in the formula.
+
+### QA-022 — HIGH — Duplicate IDs create two independent impulse-constant controls
+**Status: OPEN**  
+**Evidence: STATIC REVIEW**
+
+The current HTML contains duplicate IDs for `meterPreset` and `customMeterRow` and duplicate `meterConstant` inputs. There is an initial impulse-constant control followed later by another full impulse-constant control inside the panel.
+
+JavaScript uses `document.getElementById()`, which returns the first matching element. The first control is programmatically set to 4000, while the later visible panel contains a separate selector initially showing “Select impulse constant”. Consequently the control the user interacts with may not be the control the application reads.
+
+This directly threatens measurement correctness because the selected impulse constant can differ from the value used by the calculation.
+
+**Expected:** One unique impulse-constant control with one unique ID for each field, and the calculation must read exactly that control.
+
+**Verification:** Select 1000, 2000, 4000, and Custom in the visible UI and confirm the value used by the calculation changes correspondingly.
+
+### QA-023 — HIGH — Measurement can start without the required impulse constant
+**Status: OPEN**  
+**Evidence: STATIC REVIEW**
+
+The redesigned UI says the user must set an impulse constant before starting, but `meterConstant` is initialized to 4000 and `startMeasurement()` silently falls back to the selected first `meterPreset`. There is no validation failure path using the visible `meterConstantError` element.
+
+Therefore Start can begin measurement without the user explicitly entering/selecting the intended constant, and because of QA-022 the application may use a different constant from the visible control.
+
+**Expected:** Start must refuse to begin unless the single impulse-constant field contains a valid value, and the validation state must be visible.
+
+### QA-024 — MEDIUM — Analysis canvas is resized on every video frame
+**Status: OPEN**  
+**Evidence: STATIC REVIEW**
+
+`analyze()` executes `canvas.width=canvas.height=120` on every frame. Setting canvas dimensions clears and reallocates the drawing buffer, so the earlier QA-006 fix has regressed.
+
+**Expected:** Set the 120×120 dimensions once or only when they differ.
+
+**Verification:** Inspect runtime performance during T18 and confirm dimensions are not reassigned per frame.
+
+### QA-025 — HIGH — Red detector has regressed to a weak non-spatial metric
+**Status: OPEN**  
+**Evidence: STATIC REVIEW**
+
+The current `analyze()` accepts any pixel with `red > 8` and `r > 30`, collects all qualifying pixels, and averages only the strongest 5% (minimum 3 pixels). There is no neighbor/cluster requirement, minimum LED-shaped area, or spatial coherence requirement.
+
+This is materially weaker than the previously reviewed detector and reintroduces the false-positive risk from small red reflections, isolated red objects, and unrelated red content.
+
+**Expected:** Require a sufficiently large, spatially coherent red region in the target area, with explicit thresholds resistant to isolated reflections.
+
+**Verification:** T06, T07, T11, T16 on the physical meter/device.
+
+### QA-026 — HIGH — Camera processing has regressed from requestVideoFrameCallback to requestAnimationFrame
+**Status: OPEN**  
+**Evidence: STATIC REVIEW**
+
+The current `startProcessingLoop()` uses `requestAnimationFrame` unconditionally. The earlier implementation preferred `requestVideoFrameCallback`, which is better aligned with decoded camera-frame processing.
+
+At high requested camera rates, display refresh cadence can result in fewer processed frames than the camera provides, increasing the chance of missed short LED pulses.
+
+**Expected:** Prefer `requestVideoFrameCallback` with a safe fallback.
+
+**Verification:** T01 and T18, plus controlled fast-pulse testing.
+
+### QA-027 — HIGH — Pause/resume corrupts cumulative-average elapsed time
+**Status: OPEN**  
+**Evidence: STATIC REVIEW**
+
+Pause/resume correctly tracks active elapsed time separately, but the cumulative average still uses raw `performance.now()-firstPulseTime`. `performance.now()` continues advancing while measurement is paused.
+
+After a pause, the next pulse therefore makes the cumulative-average denominator include the paused duration, while the measurement timer and graph exclude it. The displayed “average power since start” can consequently be too low after pausing.
+
+**Expected:** Cumulative average should use active measurement elapsed time, excluding paused periods, or explicitly define the metric as wall-clock time including pauses.
+
+**Verification:** T23 followed by two known-interval pulses before and after a substantial pause.
+
+### QA-028 — MEDIUM — Invalid pulse intervals still increment pulse count
+**Status: OPEN**  
+**Evidence: STATIC REVIEW**
+
+`registerPulseForPower()` increments `measurementPulseCount` before checking whether the interval is within the valid 0.05–3600 second range. An invalid interval therefore contributes to the complete-interval count used by the cumulative average even though it is not added to `recentIntervals`.
+
+This can make the displayed cumulative average disagree with the number of valid intervals actually used for instant readings.
+
+**Expected:** Only valid intervals should advance the complete-interval count used for average power.
+
+**Verification:** Inject or reproduce an interval outside the valid range and confirm it does not alter the cumulative-average interval count.
+
+### Current verdict
+**BLOCKED — NOT READY FOR CONTROLLED PHYSICAL TESTING.**
+
+The previous QA-020 syntax issue is fixed and QA-021 is invalidated by unit analysis. However, the current redesign introduces multiple correctness regressions around the impulse-constant controls, detector strength, frame sampling, pause/resume averaging, and per-frame canvas allocation.
