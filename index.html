@@ -415,10 +415,13 @@ function analyzeRedSignal(data){
       // strongly red, highly saturated, and clearly brighter in red than
       // either green or blue. This is intentionally restrictive so real-world
       // skin and weak reddish highlights are rejected before temporal analysis.
-      if(max<45||r<=gr*1.85||r<=b*2.60)continue;
+      // Require an extreme red-channel dominance. This is intentionally
+      // much stricter than normal "red object" classification: the red
+      // channel must be at least 3x green and 4x blue.
+      if(max<45||r<=gr*3.0||r<=b*4.0)continue;
       const saturation=(max-min)/max;
       const redExcess=r-Math.max(gr,b);
-      if(saturation<0.68||redExcess<25)continue;
+      if(saturation<0.72||redExcess<35)continue;
       const i=y*gridSize+x;
       mask[i]=1;
       score[i]=redExcess*(0.55+0.45*saturation);
