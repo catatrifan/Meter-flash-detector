@@ -26,9 +26,9 @@ Record actual results after each implementation milestone. Mark tests PASS, FAIL
 | T19 | Network inspection during use | No camera frames or unnecessary personal data uploaded | NOT TESTED |
 | T20 | Camera startup failure | Any acquired stream is cleaned up | NOT TESTED |
 | T21 | Power formula unit check | 1000 imp/kWh with a 3.6 s interval gives ~1000 W; cumulative average uses millisecond factor 3,600,000,000 when elapsedMs is used directly | NOT TESTED |
-| T22 | Impulse constant required | Field starts blank; Start without a value does not begin measurement and shows an adequate validation message | NOT TESTED |
+| T22 | Pulse constant default | Field defaults to 4000 pulses/kWh; selecting a preset/custom value changes the value used by measurement calculations | NOT TESTED |
 | T23 | Pause/resume | Pause freezes measurement and timer; Start resumes without resetting prior readings | NOT TESTED |
-| T24 | Measurement statistics | Pulse count, average interval, time since last pulse, peak/lowest instant power, and peak/lowest average power update from accepted pulses | NOT TESTED |
+| T24 | Measurement statistics | Detected pulse count includes every accepted pulse; average interval and power statistics use valid complete pulse intervals; time since last pulse updates correctly | NOT TESTED |
 | T25 | Measurement timer | Start button displays active measurement duration as hh:mm:ss; paused time is excluded | NOT TESTED |
 | T26 | Graph elapsed time | Graph x-axis displays elapsed measurement time rather than Older/Latest | NOT TESTED |
 
