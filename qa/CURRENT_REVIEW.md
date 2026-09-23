@@ -3,201 +3,66 @@
 ## Fresh independent QA review — 2026-09-23
 
 ### Scope
-Fresh static review of the current `main` branch. The implementation was inspected directly rather than treating prior QA conclusions as authoritative. No physical iPhone/Safari + electricity-meter testing was performed.
+Fresh static review of the current `main` branch. The application source was inspected directly and checked independently against the previous QA findings. No physical iPhone/Safari + electricity-meter testing was performed.
 
 ### Overall status
 **BLOCKED — NOT READY FOR CONTROLLED PHYSICAL TESTING.**
 
-The current source is syntactically structured as a functioning single-page application, and several previously identified implementation issues are no longer present. However, the current implementation contains a measurement-state accounting defect and unresolved detector/frame-sampling risks that are sufficient to block controlled physical validation until clarified.
+The current source now passes the previously identified code-level measurement-state fixes. The remaining release-relevant risks are the detector's weak spatial red-signal discrimination and use of `requestAnimationFrame` for camera processing. Those require controlled runtime/physical validation and/or explicit approval before changing the detector behavior.
 
-### Findings
+### Current-source verification
 
-#### QA-030 — HIGH — Accepted pulse count and complete-interval count are conflated
+- **JavaScript syntax:** PASS — embedded script parses successfully.
+- **Application script:** PRESENT — exactly one `<script>` block.
+- **Document structure:** PASS — one `<body>` and one `</body>`.
+- **Literal escaped-newline regression:** ABSENT.
+- **Pulse-constant controls:** PASS — one `meterPreset`, one `meterConstant`, one `customMeterRow`.
+- **Pulse count:** FIXED — visible “Pulses detected” uses `acceptedPulseCount`; complete intervals remain separately tracked by `measurementPulseCount`.
+- **Long invalid interval handling:** FIXED — an interval >=3600 s starts a new timing/averaging window instead of being used as a normal interval.
+- **Duplicate helper definitions:** FIXED — `formatPower`, `setLivePower`, `setAssessmentText`, and `setInstantWaiting` each have one definition.
+- **Canvas allocation:** FIXED — the 120×120 dimensions are assigned only when they differ, not on every frame.
+- **Pause/resume exact-average accounting:** FIXED — exact average uses active elapsed time and a first-pulse active-time anchor.
+- **Cumulative-average units:** PASS — millisecond-based factor `3,600,000,000` is dimensionally correct.
+- **Camera startup syntax:** FIXED — `startCamera` is async.
 
+### Remaining findings
+
+#### QA-025 — HIGH — Weak spatial discrimination in red detector
 **Status: OPEN**  
 **Evidence: STATIC REVIEW**
 
-The current implementation uses `measurementPulseCount` for the number of complete valid intervals:
+The detector still classifies pixels using `red = r - max(g,b) > 8` and `r > 30`, then averages the strongest 5% of qualifying pixels. It does not require a sufficiently large, spatially coherent LED-like region.
 
-`if(validInterval){ measurementPulseCount++; ... }`
+This leaves a static false-positive risk from small bright red reflections or unrelated red objects within the ROI. Actual false-positive frequency cannot be established without physical testing.
 
-But the UI renders the same variable as **“Pulses detected”**:
+**Required verification:** T06, T07, T11, T16.
 
-`pulseCountEl.textContent=String(measurementPulseCount)`
-
-The first accepted detector event establishes the first-pulse anchor but does not increment `measurementPulseCount`, because there is no preceding interval. Therefore the UI under-reports accepted pulses by one:
-
-- after 1 accepted flash: **0 Pulses detected**
-- after 2 accepted flashes: **1 Pulses detected**
-- after 3 accepted flashes: **2 Pulses detected**
-
-Meanwhile `flashCount` is incremented for every accepted detector event, confirming that the implementation itself distinguishes these concepts internally but does not expose them consistently.
-
-**Why it matters:** This is not merely cosmetic. Pulse count is part of the measurement evidence presented to the user, and the incorrect count can make the user misinterpret the amount of evidence supporting the calculated average.
-
-**Expected:** Maintain separate state:
-- accepted/detected pulse count;
-- complete valid interval count.
-
-The cumulative average should continue to use complete valid intervals.
-
-**Verification:** T24 with exactly one, two, and three accepted flashes.
-
----
-
-#### QA-031 — HIGH — Invalid long intervals corrupt the interval anchor
-
+#### QA-026 — HIGH — Camera processing uses requestAnimationFrame
 **Status: OPEN**  
 **Evidence: STATIC REVIEW**
 
-`registerPulseForPower()` defines a valid interval as:
+The processing loop uses `requestAnimationFrame` rather than `requestVideoFrameCallback`. At camera rates above display refresh, this can process fewer decoded frames than the camera produces and can reduce detection opportunities for short flashes.
 
-`interval!==null && interval>0.05 && interval<3600`
+This is an implementation risk, not proof of missed pulses on the target device.
 
-However, `lastPulseTime` is updated unconditionally at the end of the function:
+**Required verification:** T01 and T18, plus controlled fast-pulse testing.
 
-`lastPulseTime=now`
+### QA-033 — MEDIUM — Provisional assessment timing
+**Status: DESIGN ACCEPTED / NO CODE DEFECT CONFIRMED**
 
-This means a detected pulse after more than 3600 seconds is rejected for power calculation but still becomes the new timing anchor. The next detected pulse is then measured from that invalid pulse rather than from the last valid pulse.
+The provisional “Assessing” state intentionally uses a separate assessment clock and changes its reference point at the first detected pulse. The exact cumulative average is separately defined from the first pulse using active elapsed time. This is a product/UX design choice rather than a confirmed calculation defect.
 
-The invalid event therefore changes subsequent interval semantics even though it was explicitly classified as invalid.
+### Additional observations
 
-**Why it matters:** A long gap, stale detector event, or lifecycle/timing anomaly can cause the next interval and therefore instantaneous power to be calculated from an invalid anchor.
-
-**Expected:** Invalid intervals should not silently become the timing anchor. Depending on the intended semantics, the implementation should either:
-1. discard the invalid event completely and retain the last valid pulse anchor, or
-2. explicitly reset the measurement/averaging window when an interval exceeds the supported range.
-
-**Verification:** T21/T24-style controlled injection or a testable detector harness with an interval >3600 s followed by a valid interval. Confirm the invalid event cannot redefine the next interval.
-
----
-
-#### QA-032 — MEDIUM — Duplicate helper definitions create ambiguous maintenance behavior
-
-**Status: OPEN**  
-**Evidence: STATIC REVIEW**
-
-The current script defines these helpers twice:
-
-- `formatPower()`
-- `setLivePower()`
-- `setAssessmentText()`
-- `setInstantWaiting()`
-
-The second declaration replaces the first declaration in the same script scope. The current pairs appear behaviorally equivalent enough that this does not currently create a demonstrated runtime defect, but it makes future changes dangerous: modifying the first definition would have no effect, while modifying only one copy can create misleading source behavior.
-
-**Expected:** Keep one definition of each helper.
-
-**Severity:** Medium maintenance/regression risk, not by itself a release blocker.
-
----
-
-#### QA-033 — MEDIUM — Average-power assessment state has inconsistent pause semantics
-
-**Status: OPEN**  
-**Evidence: STATIC REVIEW**
-
-The exact cumulative average uses active measurement elapsed time, but the provisional “Assessing” path has a separate `averageAssessmentElapsedMs` / `averageAssessmentStart` state machine.
-
-On pause, `pauseAverageAssessment()` accumulates elapsed assessment time. On resume before the first pulse, `resumeAverageAssessment()` continues that assessment. However, once the first pulse is detected, `registerPulseForPower()` resets `averageAssessmentElapsedMs=0` and `averageAssessmentStart=now` when a prior estimate is frozen.
-
-This creates two different timing windows inside the same “AVERAGE POWER (SINCE START)” area: the provisional assessment is initially based on measurement-start time, then abruptly switches to a first-pulse-relative assessment clock.
-
-This may be intentional UX, but it is not clearly defined by the label “since start” and is difficult to reason about after pause/resume.
-
-**Expected:** Define the provisional estimate's timing semantics explicitly. Ideally, the assessment should use the same active measurement clock and clearly distinguish “provisional estimate” from the exact since-first-pulse average.
-
-**Severity:** Medium; verify before relying on the provisional display.
-
----
-
-### Previously identified issues re-checked against current source
-
-- Duplicate Pulse constant IDs: **NOT PRESENT in current source.**
-- Per-frame canvas resizing: **FIXED** — dimensions are only assigned when they differ from 120×120.
-- Pause duration entering exact cumulative average: **FIXED** — exact average uses active elapsed time and a first-pulse active-time anchor.
-- Invalid intervals incrementing the exact interval count: **FIXED** for the count itself — only valid intervals increment `measurementPulseCount`. However, QA-031 identifies a separate remaining issue: invalid long events still replace `lastPulseTime`.
-- Second accepted pulse producing the first exact complete-interval average: **IMPLEMENTED** in current source.
-- Camera start function is declared `async`: **FIXED**.
-- Literal escaped-newline regression: **NOT PRESENT** in the current source inspected.
-- Default 4000 impulses/kWh: **INTENTIONAL current behavior**; the single visible control is read by the calculation.
-
-### Core detector risks — independently re-confirmed
-
-#### QA-025 / QA-026 remain OPEN
-
-The current detector still:
-- reduces the ROI to a 120×120 canvas;
-- accepts any pixel with `red = r - max(g,b) > 8` and `r > 30`;
-- averages only the strongest 5% of qualifying pixels, with a minimum of 3 pixels;
-- has no spatial-neighbor/cluster requirement or minimum LED-like region requirement;
-- processes frames through `requestAnimationFrame`.
-
-These are implementation facts from the current source, not inherited conclusions. They leave two important unverified risks:
-
-1. small bright red reflections/objects can influence the signal;
-2. display refresh cadence may undersample camera frames, particularly when the requested camera rate exceeds display refresh cadence.
-
-No claim about actual iPhone Safari performance or real meter detection is made because no physical test was performed.
-
-### Additional current-source observations
-
-- `flashCount` is incremented but is not used for the visible “Pulses detected” statistic; this contributes directly to QA-030.
-- `pulseTimes` is maintained/reset but is not populated by the current implementation.
-- `lastFrame` is declared but not used.
-- `statusEl=null` and `setStatus()` is effectively a no-op, so camera errors and “FLASH DETECTED” status messages passed to `setStatus()` are not visibly surfaced through that mechanism.
-- `METER_CONSTANT_KEY` is declared but no persistence/read/write path is present.
-- `selectInitialMeterPreset()` and `updateAverageAssessment()` are defined but not called.
-- There are repeated CSS declarations for several selectors. They are not currently shown to cause a functional defect, but they increase source ambiguity.
+- `statusEl=null` makes `setStatus()` a no-op, so messages passed to that function are not surfaced through a status element. This is a UX/diagnostic weakness but not currently a measurement blocker.
+- `METER_CONSTANT_KEY`, `selectInitialMeterPreset()`, `updateAverageAssessment()`, `pulseTimes`, and `lastFrame` are unused. These are cleanup opportunities, not release blockers.
+- Repeated CSS declarations remain, increasing maintenance ambiguity but not currently demonstrating a functional defect.
 
 ### Physical/runtime status
 
-No physical testing was performed. Therefore these remain **NOT TESTED**:
-
-- iPhone Safari camera startup and actual camera settings;
-- known-load accuracy;
-- false-positive resistance;
-- exposure/white-balance changes;
-- phone movement / ROI-edge behavior;
-- torch behavior;
-- background/foreground lifecycle;
-- long-run performance;
-- actual processed frame cadence;
-- network/privacy behavior;
-- camera startup failure cleanup.
+No physical testing was performed. The following therefore remain **NOT TESTED**: actual iPhone Safari camera startup/settings, known-load accuracy, false-positive resistance, exposure/white-balance changes, movement/ROI-edge behavior, torch behavior, lifecycle behavior, long-run performance, actual processed frame cadence, network/privacy behavior, and camera-start failure cleanup.
 
 ### Current verdict
 **BLOCKED — NOT READY FOR CONTROLLED PHYSICAL TESTING.**
 
-The current source is materially different from earlier reviewed versions, so prior findings were not carried forward merely by history. The newly identified measurement-state issues (QA-030/031), together with the independently confirmed detector/frame-sampling risks (QA-025/026), should be resolved or explicitly accepted before controlled physical testing.
-
-
----
-
-## Fix review — 2026-09-23
-
-### QA-030 — FIXED by static inspection
-The implementation now keeps accepted/detected pulse count separate from the complete valid interval count. The visible “Pulses detected” statistic uses `acceptedPulseCount`, while cumulative-average calculations continue to use `measurementPulseCount` for complete valid intervals.
-
-Expected behavior:
-- 1 accepted pulse → 1 pulse detected, 0 complete intervals.
-- 2 accepted pulses → 2 pulses detected, 1 complete interval.
-- 3 accepted pulses → 3 pulses detected, 2 complete intervals.
-
-### QA-031 — FIXED by static inspection
-A detected event following an interval of 3600 seconds or more no longer silently becomes a normal interval anchor. The current timing/averaging window is reset and the event becomes a new first-pulse anchor. This prevents an unsupported long interval from corrupting the following valid interval.
-
-Intervals below the minimum threshold remain rejected without being added to the valid-interval count.
-
-### QA-032 — FIXED by static inspection
-Duplicate definitions of `formatPower`, `setLivePower`, `setAssessmentText`, and `setInstantWaiting` were removed. Each helper now has one definition.
-
-### QA-033 — DESIGN REVIEW
-The provisional assessment deliberately uses a separate assessment clock. Before the first pulse it estimates from measurement start; after the first pulse it freezes the displayed estimate and runs a background catch-up assessment from that first pulse. Once a complete interval exists, the exact cumulative average takes over using the active elapsed time from the first pulse.
-
-This is intentional provisional-estimate behavior and is distinct from the exact cumulative-average calculation. No code change was made for QA-033.
-
-### Current remaining blockers
-The detector remains intentionally unchanged under the explicit no-change constraint, so the spatial false-positive risk (QA-025) and requestAnimationFrame cadence risk (QA-026) remain open and require physical testing/explicit approval for algorithm changes.
-
-No physical iPhone/Safari or meter testing has been performed. The current code-level findings QA-030 through QA-032 are fixed.
+The current code-level findings QA-030 through QA-032 are fixed. The remaining blockers are QA-025 and QA-026, which need controlled runtime/physical validation or separately approved implementation changes.
