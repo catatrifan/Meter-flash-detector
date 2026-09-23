@@ -220,10 +220,6 @@ const presets=[1000,2000,3000,4000,5000];
 meterPreset.value='4000';
 meterPreset.addEventListener('change',()=>{if(meterPreset.value==='custom'){customMeterRow.style.display='block';meterConstantInput.focus();}else{customMeterRow.style.display='none';meterConstantInput.value=meterPreset.value;}});
 const instantPowerEl=document.getElementById('instantPower'),averagePowerEl=document.getElementById('averagePower'),flashIndicator=document.getElementById('flashIndicator');
-function formatPower(watts){if(!Number.isFinite(watts))return '—';return watts>=1000?((watts/1000).toFixed(2)+' kW'):(watts.toFixed(0)+' W');}
-function setLivePower(instant,average){if(instant===null)instantPowerEl.textContent='-';else if(!Number.isFinite(instant))instantPowerEl.textContent='-';else instantPowerEl.textContent=formatPower(instant);if(average===null||!Number.isFinite(average))averagePowerEl.textContent='-';else averagePowerEl.textContent=formatPower(average);}
-function setAssessmentText(text){averagePowerEl.innerHTML='<span class="state-text">'+text+'<span class="assessment-dots">...</span></span>';}
-function setInstantWaiting(text){instantPowerEl.innerHTML='<span class="state-text">'+text+'<span class="assessment-dots">...</span></span>';}
 let averageAssessmentTimer=null,averageAssessmentStart=0,averageAssessmentElapsedMs=0,displayedEstimate=null,averageEstimateFrozen=false,freezeWaitingForEstimate=false;
 function stopAverageAssessment(){if(averageAssessmentTimer){clearInterval(averageAssessmentTimer);averageAssessmentTimer=null;}}
 function averageEstimateAt(){if(!meterConstant||!averageAssessmentStart)return null;const elapsedMs=Math.max(1,averageAssessmentElapsedMs+(measurementRunning?performance.now()-averageAssessmentStart:0));return POWER_FACTOR_MILLISECONDS/(elapsedMs*meterConstant);}
