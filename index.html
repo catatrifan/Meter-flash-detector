@@ -14,7 +14,7 @@
   .hint { position:absolute; top:14px; left:16px; right:16px; text-align:center; font-size:14px; line-height:1.3; text-shadow:0 1px 4px #000; display:flex; align-items:flex-start; justify-content:center; gap:7px; }
   .help-button,.torch-overlay { pointer-events:auto; width:34px; height:34px; padding:0; border-radius:50%; background:rgba(0,0,0,.65); color:#fff; border:1px solid rgba(255,255,255,.35); display:grid; place-items:center; flex:0 0 auto; }
   .help-button { font-size:17px; margin-top:-6px; }
-  .torch-overlay { position:absolute; top:56px; right:14px; }
+  .torch-overlay { position:absolute; top:8px; right:14px; }
   .torch-overlay svg { width:20px; height:20px; fill:currentColor; stroke:none; }
   .hint-text { max-width:calc(100% - 48px); }
   .tooltip { position:absolute; top:52px; left:12px; right:12px; background:rgba(15,15,15,.96); border:1px solid rgba(255,255,255,.25); border-radius:14px; padding:12px; z-index:5; display:none; pointer-events:auto; box-shadow:0 8px 30px rgba(0,0,0,.45); }
@@ -119,9 +119,9 @@
     </div>
     <button id="torchOverlay" class="torch-overlay" type="button" aria-label="Turn flashlight on">
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M8 3h8l1.4 4.5-2.2 2.1v4.9l2.6 5.5H6.2l2.6-5.5V9.6L6.6 7.5 8 3z"/>
-        <path d="M8 3h8l1 3.2H7L8 3z"/>
-        <path d="M9.5 20h5"/>
+        <path d="M6.5 5.2C6.5 3.98 7.48 3 8.7 3h6.6c1.22 0 2.2.98 2.2 2.2v2.1c0 1.6-.7 3.1-1.9 4.15v7.3c0 .69-.56 1.25-1.25 1.25h-4.7c-.69 0-1.25-.56-1.25-1.25v-7.3c-1.2-1.05-1.9-2.55-1.9-4.15V5.2z"/>
+        <rect x="6.5" y="4.2" width="11" height="2.5" rx="1.25" fill="#fff"/>
+        <rect x="10.1" y="10.1" width="3.8" height="6.2" rx="1.9" fill="#000" opacity=".7"/>
       </svg>
     </button>
     <div class="live-power">
