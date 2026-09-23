@@ -66,3 +66,38 @@ No physical testing was performed. The following therefore remain **NOT TESTED**
 **BLOCKED — NOT READY FOR CONTROLLED PHYSICAL TESTING.**
 
 The current code-level findings QA-030 through QA-032 are fixed. The remaining blockers are QA-025 and QA-026, which need controlled runtime/physical validation or separately approved implementation changes.
+
+
+---
+
+## Detector fix — 2026-09-23
+
+### QA-025 follow-up — spatial/color detector strengthened
+**Status: STATICALLY IMPROVED; PHYSICAL VERIFICATION REQUIRED**
+
+The detector was updated specifically to address false positives from skin and diffuse warm/red regions.
+
+Changes:
+- RGB samples are aggregated into 2×2 blocks before classification, reducing single-pixel sensor noise.
+- Candidate pixels now require stronger red dominance: red must exceed green and blue by multiplicative margins.
+- Candidates must also meet a minimum saturation and red-excess threshold.
+- Candidate pixels are grouped into 8-connected spatial components.
+- Very small components are rejected.
+- Very large/diffuse components are rejected.
+- Component compactness is required, favoring a concentrated LED-like region rather than a broad skin-colored area.
+- The signal combines component mean red strength, peak strength, and area concentration.
+- The existing baseline-relative rise/peak/fall state machine was not changed.
+
+### Static regression checks
+- Embedded JavaScript syntax check: **PASS**.
+- Synthetic compact saturated-red LED-like cluster: **detected**.
+- Synthetic broad skin-colored region: **rejected**.
+- Synthetic warm orange region: **rejected**.
+- Synthetic compact saturated-red reflection: **detected by the signal stage**, as expected from a color/spatial-only detector; the existing temporal pulse state machine remains responsible for rejecting sustained/static sources.
+
+These are code-level/synthetic checks only. They are **not physical camera tests**.
+
+### Physical tests still required
+T06, T07, T08, T09, T10, T11 and T16 should be rerun on the target iPhone/Safari + meter setup, with a specific regression case for a hand/finger or visible skin inside the ROI.
+
+The detector was intentionally changed only in its signal-analysis stage. Power formulas, pulse/interval accounting, measurement timer, pause/resume behavior, and meter-constant handling were not modified by this detector fix.
