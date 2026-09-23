@@ -611,3 +611,20 @@ Physical/runtime verification remains outstanding for the detector, camera caden
 - Independently re-confirmed the current detector's weak red-pixel metric and requestAnimationFrame processing as unresolved risks.
 - No application code was changed by QA. No physical-device tests were performed.
 - Current verdict: BLOCKED — NOT READY FOR CONTROLLED PHYSICAL TESTING.
+
+
+## 2026-09-23 — Fresh QA re-check after latest developer changes
+
+- Re-inspected current `main` and validated the actual `index.html` rather than relying on prior QA text.
+- Current commit/file SHA: `22b22f5c1c3042be92d65f1e8e662c946e1da1d0`.
+- Embedded JavaScript parses successfully.
+- Confirmed exactly one application script, one closing body tag, no literal escaped-newline regression, and unique measurement-control IDs.
+- QA-030 (pulse count vs complete-interval count): **FIXED**. Visible pulse count now uses `acceptedPulseCount`; complete intervals remain separate.
+- QA-031 (invalid long interval anchor): **FIXED**. Intervals >=3600 s reset the timing/averaging window and establish a new anchor.
+- QA-032 (duplicate helper definitions): **FIXED**. Each affected helper has one definition.
+- QA-024 (per-frame canvas allocation): **FIXED**. Canvas dimensions are conditionally assigned.
+- QA-025 (weak spatial red detector): **OPEN**.
+- QA-026 (requestAnimationFrame camera processing): **OPEN**.
+- QA-033 (provisional assessment timing): **DESIGN ACCEPTED / NO CODE DEFECT CONFIRMED**.
+- No application code was changed by QA. No physical-device tests were performed.
+- Current verdict: **BLOCKED — NOT READY FOR CONTROLLED PHYSICAL TESTING.**
