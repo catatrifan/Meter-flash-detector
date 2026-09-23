@@ -170,3 +170,34 @@ No physical testing was performed. Therefore these remain **NOT TESTED**:
 **BLOCKED — NOT READY FOR CONTROLLED PHYSICAL TESTING.**
 
 The current source is materially different from earlier reviewed versions, so prior findings were not carried forward merely by history. The newly identified measurement-state issues (QA-030/031), together with the independently confirmed detector/frame-sampling risks (QA-025/026), should be resolved or explicitly accepted before controlled physical testing.
+
+
+---
+
+## Fix review — 2026-09-23
+
+### QA-030 — FIXED by static inspection
+The implementation now keeps accepted/detected pulse count separate from the complete valid interval count. The visible “Pulses detected” statistic uses `acceptedPulseCount`, while cumulative-average calculations continue to use `measurementPulseCount` for complete valid intervals.
+
+Expected behavior:
+- 1 accepted pulse → 1 pulse detected, 0 complete intervals.
+- 2 accepted pulses → 2 pulses detected, 1 complete interval.
+- 3 accepted pulses → 3 pulses detected, 2 complete intervals.
+
+### QA-031 — FIXED by static inspection
+A detected event following an interval of 3600 seconds or more no longer silently becomes a normal interval anchor. The current timing/averaging window is reset and the event becomes a new first-pulse anchor. This prevents an unsupported long interval from corrupting the following valid interval.
+
+Intervals below the minimum threshold remain rejected without being added to the valid-interval count.
+
+### QA-032 — FIXED by static inspection
+Duplicate definitions of `formatPower`, `setLivePower`, `setAssessmentText`, and `setInstantWaiting` were removed. Each helper now has one definition.
+
+### QA-033 — DESIGN REVIEW
+The provisional assessment deliberately uses a separate assessment clock. Before the first pulse it estimates from measurement start; after the first pulse it freezes the displayed estimate and runs a background catch-up assessment from that first pulse. Once a complete interval exists, the exact cumulative average takes over using the active elapsed time from the first pulse.
+
+This is intentional provisional-estimate behavior and is distinct from the exact cumulative-average calculation. No code change was made for QA-033.
+
+### Current remaining blockers
+The detector remains intentionally unchanged under the explicit no-change constraint, so the spatial false-positive risk (QA-025) and requestAnimationFrame cadence risk (QA-026) remain open and require physical testing/explicit approval for algorithm changes.
+
+No physical iPhone/Safari or meter testing has been performed. The current code-level findings QA-030 through QA-032 are fixed.
