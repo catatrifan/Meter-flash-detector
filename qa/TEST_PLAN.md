@@ -32,5 +32,7 @@ Record actual results after each implementation milestone. Mark tests PASS, FAIL
 | T25 | Measurement timer | Start button displays active measurement duration as hh:mm:ss; paused time is excluded | NOT TESTED |
 | T26 | Graph elapsed time | Graph x-axis displays elapsed measurement time rather than Older/Latest | NOT TESTED |
 
+| T27 | Skin/hand in ROI | Skin inside the target region does not trigger FLASH DETECTED; genuine LED flashes remain detectable | NOT TESTED |
+
 ## Diagnostic trace recommended
 For controlled debugging, capture timestamp, signal score, baseline, threshold, detector state, peak, pulse event, and interval. Use this trace to distinguish missed pulses from false positives.
