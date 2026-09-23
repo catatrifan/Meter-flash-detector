@@ -105,3 +105,17 @@
 - Changed graph x-axis labels from Older/Latest to elapsed measurement time.
 - Added T22–T26 regression tests to TEST_PLAN.md.
 - No physical-device tests were performed.
+
+
+## 2026-09-23 — Measurement redesign QA re-review
+- QA-020 is **FIXED**: `startCamera` is now async.
+- QA-021 is **INVALID / superseded**: 3,600,000,000 is correct when dividing by elapsed milliseconds.
+- Added QA-022: duplicate impulse-constant IDs cause the code to read a different control from the visible one.
+- Added QA-023: measurement can start without explicit valid impulse-constant validation.
+- Added QA-024: canvas dimensions are assigned every frame again.
+- Added QA-025: red detection has regressed to a weak top-5%-red-pixel metric without spatial coherence.
+- Added QA-026: processing regressed from requestVideoFrameCallback to requestAnimationFrame.
+- Added QA-027: pause duration is included in cumulative-average elapsed time.
+- Added QA-028: invalid intervals increment the pulse count used by the cumulative average.
+- No application code was changed by QA. No physical-device tests were performed.
+- Current verdict: **BLOCKED — NOT READY FOR CONTROLLED PHYSICAL TESTING.**
