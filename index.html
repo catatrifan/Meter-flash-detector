@@ -90,14 +90,54 @@
   .input-hint { color:#999; font-size:12px; margin-top:5px; }
   .input-error { color:#ff6b6b; font-size:12px; margin-top:5px; min-height:17px; }
 </style>
-</head>
+<style id="ios-polish">
+:root{color-scheme:dark;--bg:#000;--surface-2:#1c1c1e;--separator:rgba(255,255,255,.11);--secondary:#a1a1a6;--blue:#0a84ff;--green:#30d158;}
+html{background:#000}body{background:#000;color:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding-bottom:env(safe-area-inset-bottom)}
+button,input,select{font:inherit;-webkit-tap-highlight-color:transparent}button{min-height:44px;box-shadow:none;transition:transform .12s ease,opacity .12s ease,background .12s ease}button:active:not(:disabled){transform:scale(.97)}
+#camera{height:60vh;min-height:430px;max-height:680px;object-fit:cover;background:#090909}
+.camera-topbar{position:absolute;top:calc(10px + env(safe-area-inset-top));left:16px;right:16px;display:flex;align-items:center;justify-content:space-between;pointer-events:none;z-index:8}
+.app-mark{font-size:15px;font-weight:700;letter-spacing:-.02em;text-shadow:0 1px 8px rgba(0,0,0,.7)}
+.camera-live-pill{display:flex;align-items:center;gap:6px;padding:6px 9px;border-radius:999px;background:rgba(0,0,0,.42);border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:rgba(255,255,255,.82);font-size:10px;font-weight:700;letter-spacing:.08em}
+.camera-live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 7px rgba(48,209,88,.7)}
+.hint{top:calc(54px + env(safe-area-inset-top));left:16px;right:16px;font-size:13px;font-weight:600;color:rgba(255,255,255,.92);text-shadow:0 1px 6px rgba(0,0,0,.8)}
+.help-button{width:24px;height:24px;min-height:24px;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.35);font-size:12px}
+.target{width:64px;height:64px;border:1.5px solid rgba(255,255,255,.9);border-radius:14px;box-shadow:0 0 0 9999px rgba(0,0,0,.14),0 0 18px rgba(255,255,255,.08)}
+.torch-overlay{width:46px;height:46px;min-height:46px;right:16px;bottom:calc(154px + env(safe-area-inset-bottom));border-radius:50%;background:rgba(0,0,0,.48);border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.live-power{left:12px;right:12px;bottom:12px;gap:8px}
+.power-card{border-radius:20px;padding:12px 14px 13px;background:rgba(28,28,30,.78);border:1px solid rgba(255,255,255,.13);box-shadow:0 8px 30px rgba(0,0,0,.28);backdrop-filter:blur(22px) saturate(1.25);-webkit-backdrop-filter:blur(22px) saturate(1.25);text-shadow:none}
+.measurement-title{margin-bottom:10px;min-height:18px;color:rgba(255,255,255,.78);font-size:12px;font-weight:600}
+.measurement-row{grid-template-columns:1fr 1fr;gap:0}
+.measurement-item:first-child{border-right:1px solid var(--separator);padding-right:14px}.measurement-item:last-child{padding-left:14px}
+.measurement-item .label{color:var(--secondary);font-size:9px;font-weight:700;letter-spacing:.08em}
+.measurement-item .value,.measurement-item.average .value{color:#fff;font-size:26px;line-height:1.15;margin-top:4px;font-weight:700;letter-spacing:-.035em}
+.flash-indicator{width:14px;height:14px}
+.settings{margin:0;padding:18px 16px 10px;border:0;border-radius:24px 24px 0 0;background:var(--surface-2);box-shadow:0 -8px 30px rgba(0,0,0,.22)}
+.settings label{margin:0 0 8px 2px;color:var(--secondary);font-size:12px;font-weight:600}
+.settings select,.pulse-input{height:50px;border-radius:14px;background:#2c2c2e;border:1px solid rgba(255,255,255,.1);color:#fff;font-size:16px}
+.input-hint{margin:7px 2px 0;color:#8e8e93;font-size:12px}
+.measurement-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 52px;gap:8px;margin:14px 0 0;flex-wrap:nowrap}
+.measurement-actions button{min-width:0;min-height:48px;border-radius:14px;font-size:16px;font-weight:650}
+.primary-action{display:flex;align-items:center;justify-content:center;gap:8px;background:var(--blue)!important;color:#fff!important}
+.primary-action #measurementTimer{font-variant-numeric:tabular-nums;opacity:.75;font-size:13px}
+.secondary-action{background:#3a3a3c!important;color:#fff!important}.tertiary-action{background:#2c2c2e!important;color:#a1a1a6!important;font-size:14px!important}
+.panel{padding:18px 0 4px;gap:0}.panel-content{display:grid;gap:0}.small#cameraInfo{padding:0 2px 14px;color:#636366;font-size:11px}
+.pulse-section,.reading-section{margin:0;padding:15px 2px;border-top:1px solid var(--separator)}
+.section-title{margin-bottom:7px;color:#f2f2f7;font-size:15px;font-weight:650}
+.stat-row{padding:7px 0;font-size:14px}.stat-row .stat-label{color:#8e8e93}.stat-row .stat-value{font-weight:600}
+#graph{height:190px;margin-top:8px;background:#111113;border-radius:16px}
+.page-footer{padding:18px 20px calc(24px + env(safe-area-inset-bottom));color:#48484a;font-size:10px}
+.tooltip{top:calc(88px + env(safe-area-inset-top));background:rgba(28,28,30,.97);border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:12px;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.tooltip-close{background:#3a3a3c}
+@media(max-width:390px){#camera{height:58vh;min-height:390px}.measurement-item .value,.measurement-item.average .value{font-size:23px}.measurement-actions{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 48px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style></head>
 <body>
 <div style="position:relative">
   <video id="camera" autoplay playsinline muted></video>
-  <div class="overlay">
+  <div class="overlay"><div class="camera-topbar"><span class="app-mark">Meter Flash</span><span class="camera-live-pill"><span class="camera-live-dot"></span>LIVE</span></div>
     <div class="target"></div>
     <div class="hint">
-      <span class="hint-text">Center the target on the meter's flashing red LED.</span>
+      <span class="hint-text">Aim the frame at the meter's red LED.</span>
       <button id="helpButton" class="help-button" type="button" aria-label="Show targeting instructions">?</button>
     </div>
     <div id="tooltip" class="tooltip">
@@ -139,7 +179,7 @@
         <text x="150" y="147" text-anchor="middle" fill="#bbb" font-size="11">Center the target on the meter's flashing red LED</text>
         <text x="353" y="147" text-anchor="middle" fill="#bbb" font-size="11">Camera</text>
       </svg>
-      <div class="tooltip-caption">The target box should be centered on the meter's flashing red LED.</div>
+      <div class="tooltip-caption">Keep the red LED inside the target.</div>
     </div>
     <button id="torchOverlay" class="torch-overlay" type="button" aria-label="Turn flashlight on">
       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -150,14 +190,14 @@
     </button>
     <div class="live-power">
       <div class="power-card">
-        <div class="measurement-title"><span id="measurementTitle">Set Pulse constant and press Start to begin measuring</span><span id="flashIndicator" class="flash-indicator" aria-label="Flash detector" hidden></span></div>
+        <div class="measurement-title"><span id="measurementTitle">Ready to measure</span><span id="flashIndicator" class="flash-indicator" aria-label="Flash detector" hidden></span></div>
         <div class="measurement-row">
           <div class="measurement-item">
-            <div class="label">INSTANT POWER CONSUMPTION</div>
+            <div class="label">INSTANT</div>
             <div class="value" id="instantPower">-</div>
           </div>
           <div class="measurement-item average">
-            <div class="label">AVERAGE POWER (SINCE START)</div>
+            <div class="label">AVERAGE</div>
             <div class="value" id="averagePower">-</div>
           </div>
         </div>
@@ -179,24 +219,28 @@
     <div id="customMeterRow" style="display:none;margin-top:8px">
       <input id="meterConstant" class="pulse-input" type="number" min="1" step="1" placeholder="Impulses/kWh">
     </div>
-    <div class="input-hint">Select the value printed on your energy meter (pulses/kWh).</div>
-<div class="measurement-actions camera-measurement-actions"><button id="startMeasurement" type="button">Start <span id="measurementTimer">00:00:00</span></button><button id="stopMeasurement" type="button" disabled>Pause</button><button id="resetMeasurement" type="button">Reset</button></div>
+    <div class="input-hint">Use the pulse constant printed on your meter.</div>
+<div class="measurement-actions camera-measurement-actions" role="group" aria-label="Measurement controls">
+<button id="startMeasurement" class="primary-action" type="button"><span id="startLabel">Start</span><span id="measurementTimer">00:00:00</span></button>
+<button id="stopMeasurement" class="secondary-action" type="button" aria-label="Pause measurement" disabled>Pause</button>
+<button id="resetMeasurement" class="tertiary-action" type="button" aria-label="Reset measurement">Reset</button>
+</div>
 <div class="panel">
   
-  <div class="small" id="cameraInfo">Camera settings: —</div>
+  <div class="small" id="cameraInfo">Camera ready</div>
   <div class="panel-content">
     <div class="pulse-section">
       <div class="section-title">Pulses</div>
-      <div class="stat-row"><span class="stat-label">Pulses detected:</span><span class="stat-value" id="pulseCount">0</span></div>
-      <div class="stat-row"><span class="stat-label">Average time between pulses:</span><span class="stat-value" id="averagePulseInterval">—</span></div>
-      <div class="stat-row"><span class="stat-label">Time since last pulse:</span><span class="stat-value" id="timeSinceLastPulse">—</span></div>
+      <div class="stat-row"><span class="stat-label">Detected</span><span class="stat-value" id="pulseCount">0</span></div>
+      <div class="stat-row"><span class="stat-label">Avg. interval</span><span class="stat-value" id="averagePulseInterval">—</span></div>
+      <div class="stat-row"><span class="stat-label">Since last pulse</span><span class="stat-value" id="timeSinceLastPulse">—</span></div>
     </div>
     <div class="reading-section">
       <div class="section-title">Readings</div>
-      <div class="stat-row"><span class="stat-label">Peak instant power:</span><span class="stat-value" id="peakInstantPower">—</span></div>
-      <div class="stat-row"><span class="stat-label">Lowest instant power:</span><span class="stat-value" id="lowestInstantPower">—</span></div>
-      <div class="stat-row"><span class="stat-label">Peak average power:</span><span class="stat-value" id="peakAveragePower">—</span></div>
-      <div class="stat-row"><span class="stat-label">Lowest average power:</span><span class="stat-value" id="lowestAveragePower">—</span></div>
+      <div class="stat-row"><span class="stat-label">Peak instant</span><span class="stat-value" id="peakInstantPower">—</span></div>
+      <div class="stat-row"><span class="stat-label">Lowest instant</span><span class="stat-value" id="lowestInstantPower">—</span></div>
+      <div class="stat-row"><span class="stat-label">Peak average</span><span class="stat-value" id="peakAveragePower">—</span></div>
+      <div class="stat-row"><span class="stat-label">Lowest average</span><span class="stat-value" id="lowestAveragePower">—</span></div>
     </div>
     
     
