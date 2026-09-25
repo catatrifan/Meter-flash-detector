@@ -126,6 +126,7 @@ button,input,select{font:inherit;-webkit-tap-highlight-color:transparent}button{
 .pulse-picker-fade{position:absolute;z-index:5;left:0;right:0;height:52px;pointer-events:none}
 .pulse-picker-fade-top{top:0;background:linear-gradient(#2c2c2e 10%,rgba(44,44,46,0))}
 .pulse-picker-fade-bottom{bottom:0;background:linear-gradient(rgba(44,44,46,0),#2c2c2e 90%)}
+.pulse-picker-done{position:absolute;z-index:6;right:10px;bottom:8px;min-height:34px;height:34px;padding:0 12px;border-radius:10px;background:#3a3a3c;color:#fff;font-size:14px;font-weight:650;border:1px solid rgba(255,255,255,.1)}
 .pulse-picker-native{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
 .input-hint{margin:7px 2px 0;color:#8e8e93;font-size:12px}
 .measurement-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:14px 0 0;flex-wrap:nowrap}
@@ -241,6 +242,7 @@ button,input,select{font:inherit;-webkit-tap-highlight-color:transparent}button{
         <option value="5000">5000 pulses/kWh</option><option value="custom">Custom</option>
       </select>
       <div class="pulse-picker-fade pulse-picker-fade-bottom"></div>
+      <button id="pulsePickerDone" class="pulse-picker-done" type="button">Done</button>
     </div>
     <div id="customMeterRow" style="display:none;margin-top:8px">
       <input id="meterConstant" class="pulse-input" type="number" min="1" step="1" placeholder="Impulses/kWh">
@@ -330,8 +332,7 @@ pulsePickerScroller.addEventListener('scroll',()=>{
     pulsePickerOptions.forEach((button,i)=>button.setAttribute('aria-selected',i===index?'true':'false'));
   },40);
 });
-pulsePickerScroller.addEventListener('touchend',()=>closePulsePicker(),{passive:true});
-pulsePickerScroller.addEventListener('pointerup',e=>{if(e.pointerType==='touch')closePulsePicker();});
+document.getElementById('pulsePickerDone').addEventListener('click',closePulsePicker);
 syncPulsePicker('4000',false);
 const instantPowerEl=document.getElementById('instantPower'),averagePowerEl=document.getElementById('averagePower'),flashIndicator=document.getElementById('flashIndicator');
 function formatPower(watts){if(!Number.isFinite(watts))return '—';return watts>=1000?((watts/1000).toFixed(2)+' kW'):(watts.toFixed(0)+' W');}
