@@ -348,6 +348,20 @@ pulsePickerScroller.addEventListener('scroll',()=>{
   pulsePickerScrollTimer=setTimeout(()=>{
     const index=Math.max(0,Math.min(pulsePickerOptions.length-1,Math.round(pulsePickerScroller.scrollTop/50)));
     pulsePickerOptions.forEach((button,i)=>button.setAttribute('aria-selected',i===index?'true':'false'));
+    const landedValue=pulsePickerOptions[index].dataset.value;
+    if(landedValue==='custom'){
+      pulseCustomEntry.hidden=false;
+      pulseCustomEntry.style.display='block';
+      pulseCustomInput.value=meterConstantInput.value||'';
+      meterPreset.value='custom';
+      pulsePickerValue.textContent='Custom';
+    } else {
+      pulseCustomEntry.hidden=true;
+      pulseCustomEntry.style.display='none';
+      meterPreset.value=landedValue;
+      pulsePickerValue.textContent=landedValue+' pulses/kWh';
+      meterConstantInput.value=landedValue;
+    }
   },40);
 });
 document.getElementById('pulsePickerDone').addEventListener('click',closePulsePicker);
