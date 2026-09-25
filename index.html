@@ -114,6 +114,16 @@ button,input,select{font:inherit;-webkit-tap-highlight-color:transparent}button{
 .settings{margin:0;padding:18px 16px 10px;border:0;border-radius:24px 24px 0 0;background:var(--surface-2);box-shadow:0 -8px 30px rgba(0,0,0,.22)}
 .settings label{margin:0 0 8px 2px;color:var(--secondary);font-size:12px;font-weight:600}
 .settings select,.pulse-input{height:50px;border-radius:14px;background:#2c2c2e;border:1px solid rgba(255,255,255,.1);color:#fff;font-size:16px}
+.pulse-picker{position:relative;height:154px;overflow:hidden;border-radius:16px;background:#2c2c2e;border:1px solid rgba(255,255,255,.1);isolation:isolate}
+.pulse-picker-options{height:100%;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none;padding:52px 0;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.pulse-picker-options::-webkit-scrollbar{display:none}
+.pulse-picker-options button{display:block;width:100%;height:50px;min-height:50px;padding:0;border:0;background:transparent;color:#8e8e93;border-radius:0;font-size:17px;font-weight:500;scroll-snap-align:center;transition:color .15s ease,transform .15s ease}
+.pulse-picker-options button[aria-selected="true"]{color:#fff;font-weight:650;transform:scale(1.02)}
+.pulse-picker-selection{position:absolute;z-index:-1;left:6px;right:6px;top:52px;height:50px;border-radius:12px;background:#48484a;box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 1px 2px rgba(0,0,0,.18);pointer-events:none}
+.pulse-picker-fade{position:absolute;z-index:2;left:0;right:0;height:52px;pointer-events:none}
+.pulse-picker-fade-top{top:0;background:linear-gradient(#2c2c2e 10%,rgba(44,44,46,0))}
+.pulse-picker-fade-bottom{bottom:0;background:linear-gradient(rgba(44,44,46,0),#2c2c2e 90%)}
+.pulse-picker-native{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
 .input-hint{margin:7px 2px 0;color:#8e8e93;font-size:12px}
 .measurement-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:14px 0 0;flex-wrap:nowrap}
 .measurement-actions button{min-width:0;min-height:48px;border-radius:14px;font-size:16px;font-weight:650}
@@ -208,14 +218,24 @@ button,input,select{font:inherit;-webkit-tap-highlight-color:transparent}button{
 </div>
   <div class="settings">
     <label for="meterPreset">Pulse constant</label>
-    <select id="meterPreset" class="pulse-input">
-        <option value="1000">1000 pulses/kWh</option>
-      <option value="2000">2000 pulses/kWh</option>
-      <option value="3000">3000 pulses/kWh</option>
-      <option value="4000" selected>4000 pulses/kWh</option>
-      <option value="5000">5000 pulses/kWh</option>
-      <option value="custom">Custom</option>
-    </select>
+    <div id="pulsePicker" class="pulse-picker" role="listbox" aria-label="Pulse constant">
+      <div class="pulse-picker-fade pulse-picker-fade-top"></div>
+      <div class="pulse-picker-selection" aria-hidden="true"></div>
+      <div class="pulse-picker-options">
+        <button type="button" data-value="1000" role="option">1000 pulses/kWh</button>
+        <button type="button" data-value="2000" role="option">2000 pulses/kWh</button>
+        <button type="button" data-value="3000" role="option">3000 pulses/kWh</button>
+        <button type="button" data-value="4000" role="option" aria-selected="true">4000 pulses/kWh</button>
+        <button type="button" data-value="5000" role="option">5000 pulses/kWh</button>
+        <button type="button" data-value="custom" role="option">Custom</button>
+      </div>
+      <select id="meterPreset" class="pulse-input pulse-picker-native" aria-hidden="true" tabindex="-1">
+        <option value="1000">1000 pulses/kWh</option><option value="2000">2000 pulses/kWh</option>
+        <option value="3000">3000 pulses/kWh</option><option value="4000" selected>4000 pulses/kWh</option>
+        <option value="5000">5000 pulses/kWh</option><option value="custom">Custom</option>
+      </select>
+      <div class="pulse-picker-fade pulse-picker-fade-bottom"></div>
+    </div>
     <div id="customMeterRow" style="display:none;margin-top:8px">
       <input id="meterConstant" class="pulse-input" type="number" min="1" step="1" placeholder="Impulses/kWh">
     </div>
@@ -260,7 +280,34 @@ let measurementRunning=false,measurementPaused=false,pulseTimes=[],recentInterva
 const meterPreset=document.getElementById('meterPreset'),customMeterRow=document.getElementById('customMeterRow'),meterConstantInput=document.getElementById('meterConstant'),startMeasurementButton=document.getElementById('startMeasurement'),stopMeasurementButton=document.getElementById('stopMeasurement'),resetMeasurementButton=document.getElementById('resetMeasurement'),measurementTitle=document.getElementById('measurementTitle'),measurementTimer=document.getElementById('measurementTimer'),pulseCountEl=document.getElementById('pulseCount'),averagePulseIntervalEl=document.getElementById('averagePulseInterval'),timeSinceLastPulseEl=document.getElementById('timeSinceLastPulse'),peakInstantEl=document.getElementById('peakInstantPower'),lowestInstantEl=document.getElementById('lowestInstantPower'),peakAverageEl=document.getElementById('peakAveragePower'),lowestAverageEl=document.getElementById('lowestAveragePower'),helpButton=document.getElementById('helpButton'),tooltip=document.getElementById('tooltip'),tooltipClose=document.getElementById('tooltipClose');
 const presets=[1000,2000,3000,4000,5000];
 meterPreset.value='4000';
-meterPreset.addEventListener('change',()=>{if(meterPreset.value==='custom'){customMeterRow.style.display='block';meterConstantInput.focus();}else{customMeterRow.style.display='none';meterConstantInput.value=meterPreset.value;}});
+const pulsePicker=document.getElementById('pulsePicker');
+const pulsePickerOptions=[...pulsePicker.querySelectorAll('.pulse-picker-options button')];
+const pulsePickerScroller=pulsePicker.querySelector('.pulse-picker-options');
+function syncPulsePicker(value,scroll=true){
+  meterPreset.value=String(value);
+  pulsePickerOptions.forEach((button,index)=>{
+    const selected=button.dataset.value===String(value);
+    button.setAttribute('aria-selected',selected?'true':'false');
+    if(selected&&scroll&&pulsePickerScroller) pulsePickerScroller.scrollTo({top:index*50,behavior:'smooth'});
+  });
+}
+function selectPulseConstant(value){
+  syncPulsePicker(value,false);
+  if(String(value)==='custom'){customMeterRow.style.display='block';meterConstantInput.focus();}
+  else{customMeterRow.style.display='none';meterConstantInput.value=value;}
+}
+pulsePickerOptions.forEach(button=>button.addEventListener('click',()=>selectPulseConstant(button.dataset.value)));
+let pulsePickerScrollTimer=null;
+pulsePickerScroller.addEventListener('scroll',()=>{
+  clearTimeout(pulsePickerScrollTimer);
+  pulsePickerScrollTimer=setTimeout(()=>{
+    const index=Math.max(0,Math.min(pulsePickerOptions.length-1,Math.round(pulsePickerScroller.scrollTop/50)));
+    const value=pulsePickerOptions[index].dataset.value;
+    if(meterPreset.value!==value) selectPulseConstant(value);
+  },80);
+});
+syncPulsePicker('4000',false);
+pulsePickerScroller.scrollTop=3*50;
 const instantPowerEl=document.getElementById('instantPower'),averagePowerEl=document.getElementById('averagePower'),flashIndicator=document.getElementById('flashIndicator');
 function formatPower(watts){if(!Number.isFinite(watts))return '—';return watts>=1000?((watts/1000).toFixed(2)+' kW'):(watts.toFixed(0)+' W');}
 function setLivePower(instant,average){if(instant===null)instantPowerEl.textContent='-';else if(!Number.isFinite(instant))instantPowerEl.textContent='-';else instantPowerEl.textContent=formatPower(instant);if(average===null||!Number.isFinite(average))averagePowerEl.textContent='-';else averagePowerEl.textContent=formatPower(average);}
