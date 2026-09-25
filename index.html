@@ -241,7 +241,7 @@ button,input,select{font:inherit;-webkit-tap-highlight-color:transparent}button{
         <option value="3000">3000 pulses/kWh</option><option value="4000" selected>4000 pulses/kWh</option>
         <option value="5000">5000 pulses/kWh</option><option value="custom">Custom</option>
       </select>
-      <div id="pulseCustomEntry" class="pulse-custom-entry" hidden><input id="pulseCustomInput" type="text" inputmode="numeric" maxlength="6" pattern="[0-9]*" placeholder="Enter pulses/kWh" aria-label="Custom pulses per kilowatt hour"></div>
+      <div id="pulseCustomEntry" class="pulse-custom-entry" style="display:none"><input id="pulseCustomInput" type="text" inputmode="numeric" maxlength="6" pattern="[0-9]*" placeholder="Enter pulses/kWh" aria-label="Custom pulses per kilowatt hour"></div>
       <div class="pulse-picker-fade pulse-picker-fade-bottom"></div>
       <button id="pulsePickerDone" class="pulse-picker-done" type="button">Done</button>
     </div>
@@ -311,10 +311,12 @@ function selectPulseConstant(value){
   if(String(value)==='custom'){
     customMeterRow.style.display='none';
     pulseCustomEntry.hidden=false;
+    pulseCustomEntry.style.display='block';
     pulseCustomInput.value=meterConstantInput.value||'';
   } else {
     customMeterRow.style.display='none';
     pulseCustomEntry.hidden=true;
+    pulseCustomEntry.style.display='none';
     meterConstantInput.value=value;
   }
 }
