@@ -126,7 +126,7 @@ button,input,select{font:inherit;-webkit-tap-highlight-color:transparent}button{
 .pulse-picker-fade{position:absolute;z-index:5;left:0;right:0;height:52px;pointer-events:none}
 .pulse-picker-fade-top{top:0;background:linear-gradient(#2c2c2e 10%,rgba(44,44,46,0))}
 .pulse-picker-fade-bottom{bottom:0;background:linear-gradient(rgba(44,44,46,0),#2c2c2e 90%)}
-.pulse-picker-done{position:absolute;z-index:6;right:10px;bottom:8px;min-height:34px;height:34px;padding:0 12px;border-radius:10px;background:#3a3a3c;color:#fff;font-size:14px;font-weight:650;border:1px solid rgba(255,255,255,.1)}
+.pulse-custom-entry{position:absolute;z-index:6;left:12px;right:12px;bottom:50px}.pulse-custom-entry[hidden]{display:none}.pulse-custom-entry input{width:100%;height:44px;padding:0 12px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:#1c1c1e;color:#fff;font-size:17px;text-align:center}.pulse-picker-done{position:absolute;z-index:6;right:10px;bottom:8px;min-height:34px;height:34px;padding:0 12px;border-radius:10px;background:#3a3a3c;color:#fff;font-size:14px;font-weight:650;border:1px solid rgba(255,255,255,.1)}
 .pulse-picker-native{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
 .input-hint{margin:7px 2px 0;color:#8e8e93;font-size:12px}
 .measurement-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:14px 0 0;flex-wrap:nowrap}
@@ -241,6 +241,7 @@ button,input,select{font:inherit;-webkit-tap-highlight-color:transparent}button{
         <option value="3000">3000 pulses/kWh</option><option value="4000" selected>4000 pulses/kWh</option>
         <option value="5000">5000 pulses/kWh</option><option value="custom">Custom</option>
       </select>
+      <div id="pulseCustomEntry" class="pulse-custom-entry" hidden><input id="pulseCustomInput" type="text" inputmode="numeric" maxlength="6" pattern="[0-9]*" placeholder="Enter pulses/kWh" aria-label="Custom pulses per kilowatt hour"></div>
       <div class="pulse-picker-fade pulse-picker-fade-bottom"></div>
       <button id="pulsePickerDone" class="pulse-picker-done" type="button">Done</button>
     </div>
@@ -293,6 +294,7 @@ const pulsePickerTrigger=document.getElementById('pulsePickerTrigger');
 const pulsePickerValue=document.getElementById('pulsePickerValue');
 const pulsePickerOptions=[...pulsePicker.querySelectorAll('.pulse-picker-options button')];
 const pulsePickerScroller=pulsePicker.querySelector('.pulse-picker-options');
+const pulseCustomEntry=document.getElementById('pulseCustomEntry'),pulseCustomInput=document.getElementById('pulseCustomInput');
 let pulsePickerScrollTimer=null;
 function syncPulsePicker(value,scroll=true){
   meterPreset.value=String(value);
@@ -306,8 +308,15 @@ function syncPulsePicker(value,scroll=true){
 }
 function selectPulseConstant(value){
   syncPulsePicker(value,false);
-  if(String(value)==='custom'){customMeterRow.style.display='block';meterConstantInput.focus();}
-  else{customMeterRow.style.display='none';meterConstantInput.value=value;}
+  if(String(value)==='custom'){
+    customMeterRow.style.display='none';
+    pulseCustomEntry.hidden=false;
+    pulseCustomInput.value=meterConstantInput.value||'';
+  } else {
+    customMeterRow.style.display='none';
+    pulseCustomEntry.hidden=true;
+    meterConstantInput.value=value;
+  }
 }
 function openPulsePicker(){
   pulsePicker.hidden=false;
@@ -318,7 +327,14 @@ function openPulsePicker(){
 }
 function closePulsePicker(){
   const index=Math.max(0,Math.min(pulsePickerOptions.length-1,Math.round(pulsePickerScroller.scrollTop/50)));
-  selectPulseConstant(pulsePickerOptions[index].dataset.value);
+  const selected=pulsePickerOptions[index].dataset.value;
+  if(selected==='custom'){
+    const custom=Number(pulseCustomInput.value);
+    if(!Number.isInteger(custom)||custom<1){pulseCustomInput.focus();return;}
+    meterPreset.value='custom';
+    meterConstantInput.value=custom;
+    pulsePickerValue.textContent=custom+' pulses/kWh';
+  } else selectPulseConstant(selected);
   pulsePickerScroller.scrollTo({top:index*50,behavior:'smooth'});
   pulsePicker.hidden=true;
   pulsePickerTrigger.setAttribute('aria-expanded','false');
@@ -333,6 +349,7 @@ pulsePickerScroller.addEventListener('scroll',()=>{
   },40);
 });
 document.getElementById('pulsePickerDone').addEventListener('click',closePulsePicker);
+pulseCustomInput.addEventListener('input',()=>{pulseCustomInput.value=pulseCustomInput.value.replace(/\D/g,'').slice(0,6);});
 syncPulsePicker('4000',false);
 const instantPowerEl=document.getElementById('instantPower'),averagePowerEl=document.getElementById('averagePower'),flashIndicator=document.getElementById('flashIndicator');
 function formatPower(watts){if(!Number.isFinite(watts))return '—';return watts>=1000?((watts/1000).toFixed(2)+' kW'):(watts.toFixed(0)+' W');}
